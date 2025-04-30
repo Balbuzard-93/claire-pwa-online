@@ -1,184 +1,185 @@
-// cravingsView.js (Implémentation des outils de gestion des envies)
-import { loadDataFromLS, saveDataToLS } from './storageUtils.js'; // Utiliser LS pour les distractions simples
-
-const DISTRACTIONS_LS_KEY = 'claireAppDistractionsList'; // Clé pour localStorage
+// cravingsView.js (Implémentation complète des outils de gestion des envies)
+import { getDistractions, saveDistractions } from './storageUtils.js'; // Utiliser les fonctions LS exportées
 
 // --- Données Statiques (Contenu des exercices) ---
 const observeToolContent = {
     title: "🧘 Observer l'Envie (Pleine Conscience)",
     steps: [
-        "Reconnaissez l'envie sans jugement. Dites-vous : 'Ok, une envie est présente'.",
-        "Installez-vous confortablement et fermez les yeux si possible, ou fixez un point neutre.",
-        "Portez votre attention sur votre respiration. Observez l'air entrer et sortir, sans chercher à la modifier.",
-        "Où ressentez-vous l'envie dans votre corps ? (Gorge serrée, ventre noué, agitation...). Observez ces sensations physiques comme des vagues, sans vous y accrocher.",
-        "Quelles pensées accompagnent cette envie ? ('J\'en ai besoin', 'Juste un peu...', 'Ça va m'aider à me sentir mieux...'). Observez ces pensées passer comme des nuages, sans les croire ou les alimenter.",
-        "Remarquez l'intensité de l'envie. Est-elle forte, moyenne, faible ? Est-ce qu'elle change ?",
-        "Rappelez-vous que l'envie est temporaire. Comme une vague, elle va monter, atteindre un pic, puis redescendre. Votre travail est de rester présent(e) et de 'surfer' cette vague sans y céder.",
-        "Continuez à respirer consciemment et à observer les sensations et pensées jusqu'à ce que l'intensité de l'envie diminue notablement.",
-        "Félicitez-vous d'avoir pris ce temps pour observer plutôt que de réagir automatiquement."
+        "Installez-vous confortablement. Fermez les yeux si possible.",
+        "Reconnaissez l'envie sans jugement : 'Ok, une envie est présente'.",
+        "Portez attention à votre respiration, observez l'air entrer et sortir.",
+        "Où ressentez-vous l'envie dans votre corps ? Observez les sensations (gorge, ventre, agitation...) comme des vagues, sans vous y accrocher.",
+        "Quelles pensées accompagnent l'envie ? Observez-les passer comme des nuages, sans les croire.",
+        "Notez l'intensité de l'envie (forte, moyenne, faible). Change-t-elle ?",
+        "Rappelez-vous : l'envie est temporaire. Elle monte, atteint un pic, puis redescend. Surfez la vague sans céder.",
+        "Continuez à respirer et observer jusqu'à ce que l'intensité diminue.",
+        "Félicitez-vous d'avoir observé plutôt que réagi."
     ]
 };
 
 const challengeToolContent = {
      title: "🤔 Défier la Pensée (TCC Simple)",
      prompts: [
-         "Quelle est la pensée exacte associée à cette envie ? (Ex: 'J'ai besoin de [substance/comportement] pour me détendre')",
-         "Quelles preuves avez-vous que cette pensée est 100% vraie maintenant ?",
-         "Quelles preuves avez-vous qu'elle pourrait ne pas être entièrement vraie ou utile ?",
-         "Quels seraient les avantages *immédiats* si vous cédiez à l'envie ?",
-         "Quels seraient les inconvénients *à court terme* (dans les prochaines heures/jours) ?",
-         "Quels seraient les inconvénients *à long terme* (par rapport à vos objectifs, valeurs, bien-être) ?",
-         "Existe-t-il une pensée alternative plus réaliste ou plus utile ? (Ex: 'Je *veux* [substance], mais je n'en ai pas *besoin*. Je peux trouver une autre façon de me détendre.')",
-         "Quelle action Saine pourriez-vous faire MAINTENANT à la place ?"
+         "Pensée associée à l'envie ? (Ex: 'J'en ai besoin pour me détendre')",
+         "Preuves que c'est 100% vrai MAINTENANT ?",
+         "Preuves que ce n'est pas (ou pas entièrement) vrai/utile ?",
+         "Avantages immédiats si je cède ?",
+         "Inconvénients à court terme (prochaines heures/jours) ?",
+         "Inconvénients à long terme (objectifs, valeurs, bien-être) ?",
+         "Pensée alternative plus réaliste/utile ? (Ex: 'J'en ai *envie*, pas *besoin*. Je peux me détendre autrement.')",
+         "Quelle action SAINE puis-je faire MAINTENANT à la place ?"
      ]
 };
 
-// --- Fonctions Outils ---
+// --- Fonctions Outils Distractions (utilisent storageUtils) ---
 
-/** Charge les distractions depuis localStorage */
-function loadDistractions() {
-    const data = loadDataFromLS(DISTRACTIONS_LS_KEY); // Utilise le helper LS
-    return Array.isArray(data) ? data : []; // Retourne un tableau vide si non trouvé/invalide
-}
-
-/** Sauvegarde les distractions dans localStorage */
-function saveDistractions(distractionsList) {
-    return saveDataToLS(DISTRACTIONS_LS_KEY, distractionsList); // Utilise le helper LS
-}
-
-/** Ajoute une distraction */
-function addDistraction(text, listElement) {
-    const distractions = loadDistractions();
+/** Ajoute une distraction (appelée par le listener) */
+function addDistraction(text, listElement, inputElement) {
+    const distractions = getDistractions(); // Lire depuis LS
     const newDistraction = text.trim();
-    if (newDistraction && !distractions.includes(newDistraction)) {
+    if (!newDistraction) { alert("Veuillez entrer une idée de distraction."); return false; }
+
+    if (newDistraction && !distractions.some(d => d.toLowerCase() === newDistraction.toLowerCase())) { // Éviter doublons (insensible casse)
         distractions.push(newDistraction);
-        if (saveDistractions(distractions)) {
+        if (saveDistractions(distractions)) { // Sauvegarder dans LS
             // Ajouter directement à la liste affichée
-            const li = document.createElement('li');
-            li.textContent = newDistraction;
-            // Ajouter bouton supprimer à côté
-             const deleteBtn = document.createElement('button');
-             deleteBtn.textContent = '×';
-             deleteBtn.className = 'delete-distraction-btn button-delete'; // Style léger
-             deleteBtn.title = 'Supprimer cette distraction';
-             deleteBtn.addEventListener('click', () => deleteDistraction(newDistraction, listElement.parentElement)); // Passe le conteneur pour re-render
-            li.appendChild(deleteBtn);
-            listElement.appendChild(li);
+            appendDistractionToList(listElement, newDistraction);
              // Enlever message "aucune distraction" s'il existe
              const noDistractionMsg = listElement.querySelector('.no-distractions-message');
              if (noDistractionMsg) noDistractionMsg.remove();
-
-            return true; // Succès
+            if(inputElement) inputElement.value = ''; // Vider input
+            return true;
+        } else {
+             alert("Erreur lors de la sauvegarde de la distraction.");
+             // Retirer de la liste locale si sauvegarde échoue ? (Moins critique pour LS)
         }
-    } else if (distractions.includes(newDistraction)) {
+    } else if (distractions.some(d => d.toLowerCase() === newDistraction.toLowerCase())) {
         alert("Cette distraction existe déjà.");
     }
-    return false; // Échec ou déjà existant
+    return false;
 }
 
-/** Supprime une distraction */
-function deleteDistraction(text, contentArea) {
-    let distractions = loadDistractions();
-    distractions = distractions.filter(d => d !== text);
+/** Supprime une distraction (appelée par le listener) */
+function deleteDistraction(text, listElement) {
+    let distractions = getDistractions();
+    distractions = distractions.filter(d => d !== text); // Filtrer la distraction à supprimer
     if (saveDistractions(distractions)) {
-        // Re-rendre la section distraction
-        renderDistractionTool(contentArea);
+        // Supprimer l'élément LI de l'UI
+        const itemToRemove = listElement.querySelector(`li[data-distraction-text="${text}"]`); // Utiliser un data-attribute
+        if (itemToRemove) itemToRemove.remove();
+        // Afficher message si liste devient vide
+        if (distractions.length === 0) {
+             listElement.innerHTML = '<p class="no-distractions-message">Aucune distraction personnelle ajoutée.</p>';
+        }
     } else {
          alert("Erreur lors de la suppression de la distraction.");
     }
 }
 
+/** Ajoute un élément LI à la liste des distractions */
+function appendDistractionToList(listElement, distractionText) {
+     if (!listElement) return;
+     const li = document.createElement('li');
+     li.dataset.distractionText = distractionText; // Stocker texte pour suppression facile
+     const textNode = document.createTextNode(distractionText + ' ');
+     const deleteBtn = document.createElement('button');
+     deleteBtn.textContent = '×';
+     deleteBtn.className = 'delete-distraction-btn button-delete';
+     deleteBtn.title = 'Supprimer cette distraction';
+     deleteBtn.setAttribute('aria-label', `Supprimer la distraction: ${distractionText}`);
+     deleteBtn.addEventListener('click', () => {
+          if (confirm(`Supprimer "${distractionText}" de vos distractions ?`)) {
+               deleteDistraction(distractionText, listElement);
+          }
+     });
+     li.appendChild(textNode);
+     li.appendChild(deleteBtn);
+     listElement.appendChild(li);
+}
+
 
 // --- Fonctions de Rendu des Outils ---
 
+/** Affiche l'outil "Observer l'Envie" */
 function renderObserveTool(contentArea) {
-    let stepsHtml = '<ol>';
+    let stepsHtml = '<ol class="steps-list">'; // Ajouter une classe pour styler
     observeToolContent.steps.forEach(step => {
         stepsHtml += `<li>${step}</li>`;
     });
     stepsHtml += '</ol>';
-    contentArea.innerHTML += `<h4>${observeToolContent.title}</h4><div class="tool-content">${stepsHtml}</div>`;
+    // Ajouter le contenu après le bouton retour déjà présent
+    contentArea.insertAdjacentHTML('beforeend', `
+        <h4>${observeToolContent.title}</h4>
+        <div class="tool-content">${stepsHtml}</div>
+    `);
 }
 
+/** Affiche l'outil "Défier la Pensée" */
 function renderChallengeTool(contentArea) {
     let promptsHtml = '<div class="challenge-prompts">';
     challengeToolContent.prompts.forEach((prompt, index) => {
         promptsHtml += `
             <div class="prompt-item">
-                <p><strong>${index + 1}. ${prompt}</strong></p>
-                <label for="challenge-response-${index}" class="visually-hidden">Votre réponse ${index + 1}</label>
-                <textarea id="challenge-response-${index}" rows="2" placeholder="Votre réflexion..."></textarea>
+                <label for="challenge-response-${index}"><strong>${index + 1}. ${prompt}</strong></label>
+                <textarea id="challenge-response-${index}" rows="3" placeholder="Votre réflexion..."></textarea>
             </div>
         `;
     });
-    promptsHtml += '</div><p><em>Prenez le temps de répondre honnêtement pour vous-même. Il n\'est pas nécessaire de sauvegarder ces réponses ici.</em></p>';
-    contentArea.innerHTML += `<h4>${challengeToolContent.title}</h4><div class="tool-content">${promptsHtml}</div>`;
+    promptsHtml += '</div><p class="tool-footnote"><em>Ces réflexions sont pour vous, elles ne sont pas sauvegardées.</em></p>';
+    contentArea.insertAdjacentHTML('beforeend', `
+        <h4>${challengeToolContent.title}</h4>
+        <div class="tool-content">${promptsHtml}</div>
+    `);
 }
 
+/** Affiche l'outil "Boîte à Distractions" */
 function renderDistractionTool(contentArea) {
-    const distractions = loadDistractions();
+    const distractions = getDistractions(); // Charger depuis LS
     let listHtml = '<p class="no-distractions-message">Aucune distraction personnelle ajoutée.</p>';
     if (distractions.length > 0) {
-        listHtml = '<ul id="distractionList">';
-        distractions.forEach(d => {
-            // Création sécurisée
-            const li = document.createElement('li');
-            const textNode = document.createTextNode(d + ' '); // Ajoute espace avant bouton
-            const deleteBtn = document.createElement('button');
-             deleteBtn.textContent = '×';
-             deleteBtn.className = 'delete-distraction-btn button-delete';
-             deleteBtn.title = 'Supprimer cette distraction';
-             deleteBtn.addEventListener('click', () => deleteDistraction(d, contentArea));
-            li.appendChild(textNode);
-            li.appendChild(deleteBtn);
-            listHtml += li.outerHTML; // Ajouter l'élément sérialisé
-        });
-        listHtml += '</ul>';
+        // Créer le UL ici
+        listHtml = '<ul id="distractionList"></ul>';
     }
 
-    contentArea.innerHTML += `
+    // Ajouter le contenu après le bouton retour
+    contentArea.insertAdjacentHTML('beforeend', `
         <h4> distract_box: Boîte à Distractions</h4>
         <div class="tool-content">
-            <p>Voici quelques idées que vous avez ajoutées pour vous changer les idées rapidement :</p>
+            <p>Vos idées rapides pour vous changer les idées :</p>
             ${listHtml}
             <div class="add-distraction-form">
-                <label for="newDistractionInput" class="visually-hidden">Nouvelle distraction:</label>
-                <input type="text" id="newDistractionInput" placeholder="Ajouter une idée (ex: boire un thé, marcher 5 min)..." maxlength="80">
+                <label for="newDistractionInput" class="visually-hidden">Nouvelle idée:</label>
+                <input type="text" id="newDistractionInput" placeholder="Ajouter une idée (marche, musique...)" maxlength="80">
                 <button id="addDistractionBtn" class="button-secondary">Ajouter</button>
             </div>
-        </div>`;
+        </div>
+    `);
+
+    // Populer la liste UL si elle existe et s'il y a des données
+    const listUl = contentArea.querySelector('#distractionList');
+    if (listUl && distractions.length > 0) {
+         distractions.forEach(d => appendDistractionToList(listUl, d));
+    }
 
     // Ajouter listener au bouton d'ajout
     const addBtn = contentArea.querySelector('#addDistractionBtn');
     const input = contentArea.querySelector('#newDistractionInput');
-    const listUl = contentArea.querySelector('#distractionList'); // Peut être null si vide initialement
 
     if (addBtn && input) {
         addBtn.addEventListener('click', () => {
             const text = input.value;
-            // Recréer la liste UL si elle n'existait pas avant l'ajout
-            let currentListUl = contentArea.querySelector('#distractionList');
-            if (!currentListUl) {
+            let currentListUl = contentArea.querySelector('#distractionList'); // Retrouver la liste
+            if (!currentListUl) { // Si elle n'existait pas (première distraction ajoutée)
                  const pMsg = contentArea.querySelector('.no-distractions-message');
-                 if (pMsg) pMsg.remove(); // Enlever le message "aucune"
+                 if (pMsg) pMsg.remove();
                  currentListUl = document.createElement('ul');
                  currentListUl.id = 'distractionList';
-                 // Insérer avant le formulaire d'ajout
                  const formDiv = contentArea.querySelector('.add-distraction-form');
                  if(formDiv) formDiv.parentNode.insertBefore(currentListUl, formDiv);
             }
-
-            if (addDistraction(text, currentListUl)) { // Passe la liste UL
-                input.value = ''; // Vider si succès
-            }
+            if (addDistraction(text, currentListUl, input)) { /* Input vidé dans addDistraction */ }
         });
-         // Permettre ajout avec Entrée
-         input.addEventListener('keydown', (event) => {
-             if(event.key === 'Enter' && addBtn) {
-                  event.preventDefault();
-                  addBtn.click();
-             }
-         });
+         input.addEventListener('keydown', (event) => { if(event.key === 'Enter' && addBtn) { event.preventDefault(); addBtn.click(); } });
     }
 }
 
@@ -187,38 +188,26 @@ function renderDistractionTool(contentArea) {
 function loadToolContent(toolId, contentArea) {
     contentArea.innerHTML = ''; // Vider l'ancien contenu
 
-    // Ajouter systématiquement le bouton Retour
     const backButton = document.createElement('button');
     backButton.id = 'backToCravingMenu';
     backButton.className = 'back-button button-secondary';
     backButton.innerHTML = '← Choisir un autre outil';
     backButton.addEventListener('click', () => {
-         contentArea.innerHTML = ''; // Vider le contenu de l'outil
+         contentArea.innerHTML = ''; // Vider
          document.querySelectorAll('.cravings-tools-menu .tool-button.active').forEach(btn => btn.classList.remove('active'));
     });
-    contentArea.appendChild(backButton);
+    contentArea.appendChild(backButton); // Ajouter le bouton retour d'abord
 
-    // Créer un div pour le contenu spécifique de l'outil
+    // Créer un div pour le contenu spécifique
     const toolSpecificContent = document.createElement('div');
     contentArea.appendChild(toolSpecificContent);
 
-    // Appeler la fonction de rendu appropriée en lui passant le nouveau div
     switch (toolId) {
-        case 'observe':
-            renderObserveTool(toolSpecificContent);
-            break;
-        case 'challenge':
-            renderChallengeTool(toolSpecificContent);
-            break;
-        case 'distract':
-            renderDistractionTool(toolSpecificContent);
-            break;
-        case 'sos':
-            // Redirection gérée dans setupToolButtons
-            contentArea.innerHTML = ''; // Vider si on clique sur SOS
-            break;
-        default:
-            toolSpecificContent.innerHTML = '<p>Outil non reconnu.</p>';
+        case 'observe': renderObserveTool(toolSpecificContent); break;
+        case 'challenge': renderChallengeTool(toolSpecificContent); break;
+        case 'distract': renderDistractionTool(toolSpecificContent); break;
+        // Le cas 'sos' est géré directement dans setupToolButtons
+        default: toolSpecificContent.innerHTML = '<p>Outil non reconnu.</p>';
     }
 }
 
@@ -232,25 +221,16 @@ function setupToolButtons(containerElement) {
     menu.addEventListener('click', (event) => {
         const button = event.target.closest('button[data-tool]');
         if (!button) return;
-
         const tool = button.dataset.tool;
 
-        // Gérer la redirection SOS séparément
         if (tool === 'sos') {
-            if (typeof window.showView === 'function') {
-                window.showView('sosView'); // Utilise la fonction globale
-            } else {
-                console.error("Fonction showView non accessible pour rediriger vers SOS.");
-                contentArea.innerHTML = '<p>Erreur: Impossible de charger les ressources SOS.</p>';
-            }
-            return; // Ne pas continuer pour SOS
+            if (typeof window.showView === 'function') { window.showView('sosView'); }
+            else { console.error("Fonction showView non accessible pour SOS."); contentArea.innerHTML = '<p>Erreur chargement SOS.</p>'; }
+            return;
         }
 
-        // Marquer le bouton actif (pour les autres outils)
         menu.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
-
-        // Charger le contenu de l'outil
         loadToolContent(tool, contentArea);
     });
 }
@@ -264,11 +244,12 @@ export function initCravingsView(containerElement) {
         <div class="cravings-tools-menu">
             <button data-tool="observe" class="tool-button button-secondary">🧘 Observer</button>
             <button data-tool="challenge" class="tool-button button-secondary">🤔 Défier</button>
-            <button data-tool="distract" class="tool-button button-secondary"> distract_box: Distractions</button> <!-- Utiliser un emoji ou icône -->
-            <button data-tool="sos" class="tool-button button-secondary">🆘 Urgence</button> <!-- Simplifier texte -->
+            <button data-tool="distract" class="tool-button button-secondary">💡 Distractions</button> <!-- Emoji idée -->
+            <button data-tool="sos" class="tool-button button-secondary">🆘 Urgence</button>
         </div>
         <div id="cravingsToolContent" class="tool-content-area">
-            <!-- Contenu de l'outil -->
+            <!-- Contenu de l'outil s'affichera ici -->
+            <p>Sélectionnez un outil ci-dessus.</p> <!-- Message initial -->
         </div>
     `;
     setupToolButtons(containerElement);
