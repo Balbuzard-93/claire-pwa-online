@@ -163,11 +163,12 @@ main#app {
 
 /* Styles généraux pour les boutons (Standardisation) */
 .button-primary,
-#saveJournalEntryBtn, /* Utilisation de l'ID corrigé */
+#saveJournalEntryBtn,
 .sobriety-counter-styles button, /* Bouton "Commencer" */
 #saveMoodEntry.save-button,
 #addTaskBtn,
-#addRoutineTaskBtn /* Utilisation de l'ID corrigé */
+#addRoutineTaskBtn, /* ID Corrigé */
+#addVictoryBtn /* Bouton Victoires */
  {
     padding: 0.8rem 1.5rem;
     font-size: 1rem;
@@ -181,6 +182,19 @@ main#app {
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
     -webkit-tap-highlight-color: transparent;
 }
+/* Style spécifique bouton Victoires */
+#addVictoryBtn {
+    background-color: #FFD700; /* Gold */
+    color: #333; /* Texte foncé */
+    min-width: 180px;
+    align-self: center;
+}
+#addVictoryBtn:hover {
+     background-color: #f0c800; /* Or plus foncé */
+     color: #000;
+}
+
+
 .button-primary:hover,
 #saveJournalEntryBtn:hover,
 .sobriety-counter-styles button:hover,
@@ -188,14 +202,15 @@ main#app {
 #addTaskBtn:hover:not(:disabled),
 #addRoutineTaskBtn:hover
 {
-     background-color: #483D8B; /* Plus foncé */
+     background-color: #483D8B; /* Plus foncé (sauf pour victoire) */
 }
  .button-primary:active,
 #saveJournalEntryBtn:active,
 .sobriety-counter-styles button:active,
 #saveMoodEntry.save-button:active:not(:disabled),
 #addTaskBtn:active:not(:disabled),
-#addRoutineTaskBtn:active
+#addRoutineTaskBtn:active,
+#addVictoryBtn:active /* Actif pour victoire */
  {
      transform: scale(0.98);
      filter: brightness(95%);
@@ -211,11 +226,18 @@ main#app {
      transform: none;
      filter: none;
  }
+ /* Style disabled spécifique pour victoire si nécessaire */
+ #addVictoryBtn:disabled {
+     background-color: #cccccc;
+     color: #888;
+ }
 
 .button-secondary,
 .back-button,
 .edit-routine-button,
-#newPhraseBtn /* Bouton SOS "Autre Phrase" */
+#newPhraseBtn, /* Bouton SOS "Autre Phrase" */
+.cravings-tools-menu .tool-button, /* Boutons menu envies */
+#addDistractionBtn /* Bouton ajouter distraction */
  {
     padding: 0.6rem 1.2rem;
     font-size: 0.9rem;
@@ -230,7 +252,9 @@ main#app {
  .button-secondary:hover,
 .back-button:hover,
 .edit-routine-button:hover,
-#newPhraseBtn:hover
+#newPhraseBtn:hover,
+.cravings-tools-menu .tool-button:hover,
+#addDistractionBtn:hover
  {
     background-color: #E6E6FA;
     color: #483D8B;
@@ -238,7 +262,9 @@ main#app {
  .button-secondary:active,
  .back-button:active,
  .edit-routine-button:active,
- #newPhraseBtn:active
+ #newPhraseBtn:active,
+ .cravings-tools-menu .tool-button:active,
+ #addDistractionBtn:active
  {
       transform: scale(0.98);
       filter: brightness(95%);
@@ -248,7 +274,8 @@ main#app {
 .button-delete,
 .delete-task-btn,
 .delete-victory-btn,
-.delete-journal-btn /* Classe ajoutée pour journal */
+.delete-journal-btn, /* Classe ajoutée pour journal */
+.delete-distraction-btn /* Classe pour distractions */
 {
     background: none;
     border: none;
@@ -263,7 +290,8 @@ main#app {
  .button-delete:hover,
  .delete-task-btn:hover,
  .delete-victory-btn:hover,
- .delete-journal-btn:hover
+ .delete-journal-btn:hover,
+ .delete-distraction-btn:hover
  {
      color: #FF6347; /* Rouge */
  }
@@ -272,58 +300,41 @@ main#app {
 /* --- Styles Spécifiques à Chaque Vue --- */
 
 /* Motivation Quotidienne (#sobrietyView) */
-.motivation-section {
-    background-color: #f0f0ff;
-    border: 1px solid #e0e0ff;
-    border-radius: 8px;
-    padding: 1rem 1.5rem;
-    margin-bottom: 1.5rem;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,100,0.05);
-    transition: background-color 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease, margin-bottom 0.3s ease;
-}
-.motivation-section p {
-    margin: 0;
-    font-size: 1.1em;
-    font-style: italic;
-    color: #6A5ACD;
-    line-height: 1.6;
-    transition: font-size 0.3s ease, font-style 0.3s ease, color 0.3s ease;
-}
+.motivation-section { background-color: #f0f0ff; border: 1px solid #e0e0ff; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,100,0.05); transition: background-color 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease, margin-bottom 0.3s ease; }
+.motivation-section p { margin: 0; font-size: 1.1em; font-style: italic; color: #6A5ACD; line-height: 1.6; transition: font-size 0.3s ease, font-style 0.3s ease, color 0.3s ease; }
 
 /* Suivi Sobriété (#sobrietyView) */
 .sobriety-counter-styles { text-align: center; }
 .sobriety-counter-styles p { font-size: 1.2rem; margin-bottom: 0.5rem; }
 .sobriety-counter-styles strong { font-size: 1.8rem; color: #6A5ACD; transition: font-size 0.3s ease; }
-/* Style du bouton "Commencer" hérité de .button-primary */
+/* Style bouton "Commencer" hérité de .button-primary */
 
 /* Journal (#journalView) */
 #journalView .journal-form { margin-bottom: 1.5rem; }
-#journalView .journal-form label[for="journalEntryInput"] { /* Reste caché par défaut */ }
 #journalEntryInput { width: 100%; min-height: 100px; padding: 0.8rem; border: 1px solid #ccc; border-radius: 5px; font-family: inherit; font-size: 1rem; margin-bottom: 0.8rem; resize: vertical; transition: min-height 0.3s ease; }
 /* Style #saveJournalEntryBtn hérité de .button-primary */
 #journalEntriesList { margin-top: 1rem; }
-.journal-entry { position: relative; /* Pour le bouton supprimer */ margin-bottom: 1.5rem; padding: 1rem 1rem 1rem 1.5rem; /* Laisser place droite pour bouton */ border-bottom: 1px solid #eee; }
+.journal-entry { position: relative; margin-bottom: 1.5rem; padding: 1rem 2.5rem 1rem 1rem; /* Espace pour bouton X */ border-bottom: 1px solid #eee; }
 .journal-entry:last-child { border-bottom: none; margin-bottom: 0; }
 .journal-entry-date { display: block; font-size: 0.85rem; color: #777; margin-bottom: 0.4rem; transition: font-size 0.3s ease; }
 .journal-entry-text { font-size: 1rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; transition: font-size 0.3s ease, line-height 0.3s ease;}
-.delete-journal-btn { /* Positionner le bouton */ position: absolute; top: 0.5rem; right: 0.5rem; font-size: 1.5em; /* Taille X */ } /* Hérite du style .button-delete */
+.delete-journal-btn { position: absolute; top: 0.5rem; right: 0.5rem; font-size: 1.5em; } /* Hérite style .button-delete */
 
 /* Humeur (#moodTrackerView) */
 .mood-instruction { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 1.5rem; transition: opacity 0.3s ease; }
 .mood-question { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #f0f0f0; transition: margin-bottom 0.3s ease, padding-bottom 0.3s ease; }
 .mood-question label { display: block; font-weight: bold; margin-bottom: 0.75rem; color: #555; }
 .mood-selector { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
-.mood-selector button { padding: 0.6rem 1rem; font-size: 0.9rem; background-color: #f0f0f0; color: #333; border: 1px solid #dcdcdc; border-radius: 20px; cursor: pointer; flex-grow: 1; text-align: center; min-width: 80px; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease, padding 0.3s ease, font-size 0.3s ease; -webkit-tap-highlight-color: transparent; }
-.mood-buttons button { flex-basis: calc(20% - 0.5rem); min-width: 60px; }
-.energy-buttons button, .anxiety-buttons button { flex-basis: calc(33.33% - 0.5rem); }
+.mood-selector button { padding: 0.6rem 1rem; font-size: 1.3rem; /* Pour emojis */ background-color: #f0f0f0; color: #333; border: 1px solid #dcdcdc; border-radius: 20px; cursor: pointer; flex-grow: 1; text-align: center; min-width: 50px; /* Ajuster pour emojis */ transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease, padding 0.3s ease, font-size 0.3s ease; -webkit-tap-highlight-color: transparent; }
+.energy-buttons button, .anxiety-buttons button { font-size: 0.9rem; /* Texte normal */ padding: 0.6rem 1rem; flex-basis: calc(33.33% - 0.5rem); min-width: 80px; }
+.mood-buttons button { flex-basis: calc(20% - 0.5rem); min-width: 50px; }
 .mood-selector button:hover:not(:disabled) { background-color: #e0e0e0; border-color: #c0c0c0; transform: translateY(-1px); }
-.mood-selector button.selected { font-weight: bold; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.mood-selector button.selected { font-weight: bold; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transform: scale(1.05); /* Indiquer sélection */ }
 .mood-buttons button.selected { background-color: #ADD8E6; border-color: #87CEEB; color: #005683; }
 .energy-buttons button.selected { background-color: #FFDAB9; border-color: #FFA07A; color: #A0522D; }
 .anxiety-buttons button.selected { background-color: #98FB98; border-color: #3CB371; color: #006400; }
 .mood-selector button:disabled { opacity: 0.6; cursor: not-allowed; background-color: #e9e9e9; }
-.mood-selector button.selected:disabled { opacity: 0.8; box-shadow: none; }
+.mood-selector button.selected:disabled { opacity: 0.8; box-shadow: none; transform: none; }
 #saveMoodEntry.save-button { /* Utilise .button-primary */ display: block; width: 100%; max-width: 300px; margin: 2rem auto 1rem auto; padding: 0.9rem 1.5rem; font-size: 1.1rem; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease, margin 0.3s ease, padding 0.3s ease, font-size 0.3s ease; }
 #moodMessage.mood-message { text-align: center; margin-top: 1rem; padding: 0.8rem; border-radius: 5px; font-weight: bold; transition: padding 0.3s ease, font-size 0.3s ease; }
 #moodMessage.success { background-color: #dff0d8; color: #3c763d; border: 1px solid #d6e9c6; }
@@ -334,7 +345,7 @@ main#app {
 #sobrietyProgress { text-align: center; font-size: 1.2em; color: #333; }
 #sobrietyProgress strong { font-size: 1.8em; color: #6A5ACD; display: block; margin: 0.5rem 0; transition: font-size 0.3s ease; }
 #moodChartContainer { position: relative; height: 350px; width: 100%; padding: 1rem; transition: opacity 0.3s ease, height 0.3s ease; }
-#moodChartContainer p { text-align: center; color: #666; padding: 2rem 1rem; }
+#moodChartContainer p { text-align: center; color: #666; padding: 2rem 1rem; } /* Message si pas de données */
 #moodChartCanvas { display: block; width: 100% !important; height: 100% !important; }
 #badgesDisplay h3 { text-align: center; color: #483D8B; margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
 #badgesList { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; padding-top: 0.5rem; transition: opacity 0.3s ease; }
@@ -362,15 +373,14 @@ main#app {
 /* Style .back-button hérité de .button-secondary */
 
 /* Routine (#routineView) */
-.routine-input-form .input-group { margin-bottom: 0.5rem; } /* Espacement inputs routine */
-/* Label ajouté pour accessibilité */
-.routine-input-form label { /* Reste caché par défaut */ }
+.routine-input-form .input-group { margin-bottom: 0.5rem; }
 #routineView p { text-align: center; margin-bottom: 1.5rem; color: #555; transition: opacity 0.3s ease; }
 .routine-input-form { display: flex; flex-direction: column; gap: 0.8rem; max-width: 400px; margin: 0 auto 1.5rem auto; }
 .task-input { padding: 0.8rem; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; transition: padding 0.3s ease; }
 .task-input::placeholder { color: #aaa; }
 /* Style #addRoutineTaskBtn hérité de .button-primary */
 .task-list { list-style: none; padding: 0; margin: 0 auto; max-width: 500px; }
+#routineTaskList .no-tasks-message { /* Style pour message si vide */ text-align: center; color: #888; padding: 1rem 0; }
 .task-list-item { display: flex; align-items: center; padding: 0.8rem 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #f0f0f0; transition: background-color 0.2s ease, opacity 0.3s ease, padding 0.3s ease; }
 .task-list-item:last-child { border-bottom: none; }
 .task-checkbox { margin-right: 0.8rem; width: 1.3em; height: 1.3em; cursor: pointer; accent-color: #6A5ACD; flex-shrink: 0; }
@@ -380,8 +390,6 @@ main#app {
 /* Style .edit-routine-button hérité de .button-secondary */
 
 /* Planificateur (#plannerView) */
-/* Label ajouté pour accessibilité */
-.planner-add-task label[for="newTaskInput"] { /* Reste caché */ }
 .planner-add-task { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; margin-bottom: 2rem; padding: 1rem; background-color: #f9f9ff; border-radius: 6px; border: 1px solid #e0e0ff; }
 #newTaskInput { flex-grow: 1; padding: 0.8rem; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; min-width: 200px; }
 .energy-selector { display: flex; align-items: center; gap: 0.3rem; color: #555; font-size: 0.9em; }
@@ -396,11 +404,11 @@ main#app {
 .planner-task-item:last-child { border-bottom: none; }
 .planner-task-item .task-checkbox { width: 1.3em; height: 1.3em; cursor: pointer; accent-color: #6A5ACD; flex-shrink: 0; }
 .planner-task-item .task-text { flex-grow: 1; color: #333; transition: color 0.3s ease, text-decoration 0.3s ease; word-break: break-word; }
-.energy-indicator { font-size: 0.9em; flex-shrink: 0; padding: 0 0.3em; border-radius: 3px; }
+.energy-indicator { font-size: 0.9em; flex-shrink: 0; padding: 0 0.3em; border-radius: 3px; margin-left: auto; /* Pousse à droite */ padding-left: 0.5rem; }
 .energy-indicator.low { color: #3CB371; } /* Vert */
 .energy-indicator.medium { color: #FFA07A; } /* Orange pâle */
 .energy-indicator.high { color: #FF6347; } /* Rouge tomate */
-.delete-task-btn { /* Appliquer .button-delete */ font-size: 1.2em; }
+.delete-task-btn { /* Appliquer .button-delete */ font-size: 1.2em; margin-left: 0.5rem; flex-shrink: 0; }
 .planner-task-item.task-completed { opacity: 0.6; }
 .planner-task-item.task-completed .task-text { text-decoration: line-through; color: #777; }
 
@@ -413,7 +421,6 @@ main#app {
 .testimonial-text p:last-child { margin-bottom: 0; }
 
 /* Victoires (#victoriesView) */
-/* Label ajouté pour accessibilité */
 .victory-add-form label[for="newVictoryInput"] { /* Reste caché */ }
 .victory-add-form { margin-bottom: 2rem; padding: 1rem; background-color: #fffacd; border: 1px solid #eee8aa; border-radius: 6px; display: flex; flex-direction: column; gap: 0.8rem; }
 #newVictoryInput { width: 100%; min-height: 60px; padding: 0.8rem; border: 1px solid #ccc; border-radius: 5px; font-family: inherit; font-size: 1rem; resize: vertical; }
@@ -433,14 +440,15 @@ main#app {
 .sos-tool { background-color: #fff8f8; border: 1px solid #ffe0e0; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: padding 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;}
 .sos-tool h3 { color: #CD5C5C; margin-bottom: 1rem; text-align: center; border-bottom: 1px solid #ffe0e0; padding-bottom: 0.5rem; }
 .breathing-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 1rem; }
-#breathingVisualizer { width: 100px; height: 100px; background-color: #ADD8E6; border-radius: 50%; margin: 1rem auto; transition: transform 0.5s ease-in-out, background-color 0.5s ease, width 0.3s ease, height 0.3s ease; transform: scale(1); }
+#breathingVisualizer { width: 100px; height: 100px; background-color: #ADD8E6; border-radius: 50%; margin: 1rem auto; transition: transform 0.5s ease-in-out, background-color 0.5s ease, width 0.3s ease, height 0.3s ease; transform: scale(1); animation-fill-mode: forwards; /* Garde l'état final de l'anim */ }
 @keyframes inhaleAnimation { 0% { transform: scale(1); background-color: #ADD8E6; } 100% { transform: scale(1.4); background-color: #87CEEB; } }
 @keyframes exhaleAnimation { 0% { transform: scale(1.4); background-color: #87CEEB; } 100% { transform: scale(0.8); background-color: #B0C4DE; } }
 @keyframes holdAnimation { 0% { transform: scale(1.4); background-color: #87CEEB; } 100% { transform: scale(1.4); background-color: #87CEEB; } }
-#breathingVisualizer.breathing-inhale { animation: inhaleAnimation var(--inhale-duration, 4s) ease-in-out forwards; } /* Utiliser variable CSS si possible, sinon durée fixe */
-#breathingVisualizer.breathing-hold { animation: holdAnimation var(--hold-duration, 4s) linear forwards; }
-#breathingVisualizer.breathing-exhale { animation: exhaleAnimation var(--exhale-duration, 6s) ease-in-out forwards; }
-#breathingVisualizer:not([class*="breathing-"]) { /* Cibler quand aucune classe d'animation n'est active */ transform: scale(1); background-color: #ADD8E6; animation: none; } /* Reset animation */
+/* Appliquer animation via JS avec style.animationName et style.animationDuration */
+#breathingVisualizer.breathing-inhale { animation-name: inhaleAnimation; /* animation-duration set by JS */ }
+#breathingVisualizer.breathing-hold { animation-name: holdAnimation; }
+#breathingVisualizer.breathing-exhale { animation-name: exhaleAnimation; }
+#breathingVisualizer:not([class*="breathing-"]) { transform: scale(1); background-color: #ADD8E6; animation: none; }
 #breathingInstruction { min-height: 2em; text-align: center; font-weight: bold; color: #333; margin-top: 1rem; transition: min-height 0.3s ease, font-size 0.3s ease; }
 .sos-button { /* Bouton Commencer Respiration */ display: block; margin: 1rem auto 0 auto; padding: 0.7rem 1.5rem; font-size: 1rem; color: white; background-color: #CD5C5C; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease, padding 0.3s ease, font-size 0.3s ease; -webkit-tap-highlight-color: transparent; }
 .sos-button:hover:not(:disabled) { background-color: #B24C4C; }
@@ -465,6 +473,34 @@ main#app {
 #exportDataBtn:disabled { cursor: wait; background-color: #aaa; }
 .status-message { margin-top: 1rem; text-align: center; font-weight: bold; min-height: 1.5em; color: #3c763d; transition: opacity 0.3s ease; }
 #exportStatus:empty { opacity: 0; }
+
+
+/* --- Styles Vue Gestion Envies --- */
+#cravingsView h2 { text-align: center; color: #483D8B; margin-bottom: 1rem; }
+.cravings-intro { text-align: center; margin-bottom: 2rem; color: #555; }
+.cravings-tools-menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.8rem; margin-bottom: 2rem; }
+.cravings-tools-menu .tool-button { flex-grow: 1; min-width: 120px; text-align: center; } /* Hérite .button-secondary */
+.cravings-tools-menu .tool-button.active { background-color: #dcd0ff; border-color: #6A5ACD; font-weight: bold; }
+.tool-content-area { margin-top: 1.5rem; padding: 1.5rem; background-color: #fdfdff; border: 1px solid #eef; border-radius: 8px; min-height: 150px; }
+.tool-content-area:empty { padding: 0; border: none; min-height: 0; }
+.tool-content-area h4 { color: #6A5ACD; margin-top: 0; margin-bottom: 1rem; text-align: center; font-size: 1.1rem; }
+.tool-content { margin-top: 1rem; }
+/* Observer l'Envie */
+#cravingsToolContent ol { padding-left: 1.5rem; margin-top: 0.5rem; }
+#cravingsToolContent ol li { margin-bottom: 0.8rem; line-height: 1.6; }
+/* Défier la Pensée */
+.challenge-prompts .prompt-item { margin-bottom: 1.5rem; }
+.challenge-prompts p strong { display: block; margin-bottom: 0.5rem; color: #483D8B; }
+.challenge-prompts textarea { width: 100%; min-height: 50px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 0.95rem; }
+#cravingsToolContent em { display: block; text-align: center; font-size: 0.85rem; color: #777; margin-top: 1rem; }
+/* Boîte à Distractions */
+#distractionList { list-style: disc; margin-left: 1.5rem; margin-bottom: 1.5rem; }
+#distractionList li { margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+.delete-distraction-btn { font-size: 1em; padding: 0 0.3rem; margin-left: 0.5rem; } /* Hérite .button-delete */
+.add-distraction-form { display: flex; gap: 0.5rem; margin-top: 1rem; border-top: 1px dashed #eee; padding-top: 1rem; }
+#newDistractionInput { flex-grow: 1; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; }
+#addDistractionBtn { padding: 0.6rem 1rem; flex-shrink: 0;} /* Hérite .button-secondary */
+.no-distractions-message { color: #888; font-style: italic; }
 
 
 /* --- Focus Visible --- */
@@ -493,7 +529,7 @@ body.zen-mode header { background-color: #fdfdfd; box-shadow: none; border-botto
 body.zen-mode header h1 { font-size: 1.5rem; margin-bottom: 0.3rem; }
 body.zen-mode .nav-button { padding: 0.4rem 0.8rem; font-size: 1.3rem; border-radius: 15px; border-color: #eee; color: #aaa; }
 body.zen-mode .nav-button.active { background-color: #eee; color: #555; border-color: #ddd;}
-body.zen-mode .nav-button.sos-button { background-color: #FF6347; color: white; border-color: #FF4500; opacity: 1; /* Assurer visibilité */}
+body.zen-mode .nav-button.sos-button { background-color: #FF6347; color: white; border-color: #FF4500; opacity: 1; }
 body.zen-mode .nav-button.sos-button.active { background-color: #CD5C5C; border-color: #B24C4C; }
 body.zen-mode .nav-button.zen-toggle-button { font-size: 0.85rem; border-color: #6A5ACD; color: #6A5ACD; font-weight: bold; background-color: #f0f0ff;}
 body.zen-mode .view-section { box-shadow: none; border: 1px solid #f5f5f5; background-color: #ffffff; padding: 1rem; }
@@ -503,18 +539,24 @@ body.zen-mode #moodChartContainer,
 body.zen-mode #badgesDisplay,
 body.zen-mode #testimonialsList,
 body.zen-mode .testimonials-intro,
-body.zen-mode #testimonialsView h2 { display: none !important; }
+body.zen-mode #testimonialsView h2,
+body.zen-mode .progress-section:has(#moodChartContainer), /* Masquer section entière */
+body.zen-mode .progress-section:has(#badgesDisplay) /* Masquer section entière */
+ { display: none !important; }
 body.zen-mode .motivation-section { background-color: transparent; border: none; box-shadow: none; padding: 0.5rem 0; margin-bottom: 1rem; border-bottom: 1px dashed #eee; }
 body.zen-mode .motivation-section p { font-size: 1em; font-style: normal; color: #666; }
 body.zen-mode #sobrietyProgress strong { font-size: 1.6em; }
 body.zen-mode .sobriety-counter-styles button { padding: 0.6rem 1rem; font-size: 0.9rem; }
+body.zen-mode .journal-entry { padding: 0.8rem 2rem 0.8rem 1rem; }
 body.zen-mode .journal-entry-date { font-size: 0.8rem; }
 body.zen-mode .journal-entry-text { font-size: 0.95rem; line-height: 1.5; }
 body.zen-mode #journalEntryInput { min-height: 80px; }
 body.zen-mode #saveJournalEntryBtn { padding: 0.7rem 1rem; }
+body.zen-mode .delete-journal-btn { font-size: 1.3em; top: 0.3rem; right: 0.3rem;}
 body.zen-mode .mood-instruction { display: none; }
 body.zen-mode .mood-question { margin-bottom: 1rem; padding-bottom: 0.5rem; }
-body.zen-mode .mood-selector button { padding: 0.5rem 0.8rem; font-size: 0.85rem; }
+body.zen-mode .mood-selector button { padding: 0.5rem 0.8rem; font-size: 1.1rem; /* Emojis un peu plus petits ? */ min-width: 45px; }
+body.zen-mode .energy-buttons button, body.zen-mode .anxiety-buttons button { font-size: 0.85rem; min-width: 70px; }
 body.zen-mode #saveMoodEntry.save-button { margin: 1.5rem auto 0.5rem auto; padding: 0.8rem 1.2rem; font-size: 1rem; }
 body.zen-mode #moodMessage.mood-message { padding: 0.5rem; font-size: 0.9rem; }
 body.zen-mode .exercises-intro { display: none; }
@@ -525,7 +567,7 @@ body.zen-mode #exerciseDetail .exercise-steps p { font-size: 0.95rem; line-heigh
 body.zen-mode .back-button { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin-bottom: 1rem;}
 body.zen-mode #routineView p { display: none; } /* Intro routine */
 body.zen-mode .task-input { padding: 0.7rem; }
-body.zen-mode #addRoutineTaskBtn { padding: 0.8rem 1.2rem; } /* ID corrigé */
+body.zen-mode #addRoutineTaskBtn { padding: 0.8rem 1.2rem; }
 body.zen-mode .task-list-item { padding: 0.6rem 0.4rem; }
 body.zen-mode .task-text { font-size: 0.95rem; }
 body.zen-mode .edit-routine-button { padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 1rem; }
