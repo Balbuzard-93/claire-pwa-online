@@ -1,177 +1,132 @@
-// journal.js (Version utilisant IndexedDB via storageUtils.js)
-import { getJournalEntries, addJournalEntry, deleteJournalEntry } from './storageUtils.js'; // Mise à jour des imports
+// journal.js (Version utilisant IndexedDB - AVEC LOGS DE DEBUG)
+import { getJournalEntries, addJournalEntry, deleteJournalEntry } from './storageUtils.js';
 
-/**
- * Supprime une entrée de journal par son ID.
- * @param {number} entryId - L'ID de l'entrée à supprimer.
- * @param {HTMLElement} listContainer - Le conteneur de la liste pour rafraîchir.
- */
+/** Supprime une entrée de journal par son ID. */
 async function deleteEntry(entryId, listContainer) {
+    console.log(`Journal LOG: Tentative suppression ID ${entryId}`); // LOG J_DEL_1
     try {
-        await deleteJournalEntry(entryId); // Appel asynchrone
-        // console.log("Entrée supprimée, ID:", entryId);
-        await loadAndDisplayEntries(listContainer); // Recharger la liste
+        await deleteJournalEntry(entryId);
+        console.log(`Journal LOG: Suppression DB OK ID ${entryId}`); // LOG J_DEL_2
+        await loadAndDisplayEntries(listContainer);
     } catch (error) {
-        console.error("Erreur lors de la suppression de l'entrée de journal:", error);
+        console.error("Journal LOG ERROR: Erreur suppression entrée:", error); // LOG J_DEL_ERR
         alert("Impossible de supprimer l'entrée.");
     }
 }
 
-/**
- * Charge les entrées de journal depuis IndexedDB et les affiche.
- * DOIT être appelée avec await ou dans un contexte async.
- * @param {HTMLElement} listContainer - L'élément où afficher la liste des entrées.
- */
+/** Charge et affiche les entrées depuis IndexedDB. */
 async function loadAndDisplayEntries(listContainer) {
-    if (!listContainer) { console.error("Conteneur de liste journal introuvable."); return; }
-    listContainer.innerHTML = '<p>Chargement des entrées...</p>'; // Message temporaire
+    console.log("Journal LOG: Début loadAndDisplayEntries"); // LOG J_LOAD_1
+    if (!listContainer) { console.error("Journal LOG ERROR: Conteneur liste introuvable."); return; } // LOG J_LOAD_ERR1
+    listContainer.innerHTML = '<p>Chargement des entrées...</p>';
 
     try {
-        const entries = await getJournalEntries(); // Appel asynchrone
-
-        listContainer.innerHTML = ''; // Vider la liste après chargement
+        console.log("Journal LOG: Appel getJournalEntries..."); // LOG J_LOAD_2
+        const entries = await getJournalEntries();
+        console.log(`Journal LOG: ${entries.length} entrées récupérées.`); // LOG J_LOAD_3
+        listContainer.innerHTML = ''; // Vider
 
         if (!Array.isArray(entries) || entries.length === 0) {
             listContainer.innerHTML = '<p>Aucune entrée pour le moment.</p>';
+            console.log("Journal LOG: Aucune entrée à afficher."); // LOG J_LOAD_4
             return;
         }
 
-        // Trier par date décroissante (plus récent en premier)
         entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         entries.forEach(entry => {
             const entryDiv = document.createElement('div');
             entryDiv.className = 'journal-entry';
-            entryDiv.dataset.entryId = entry.id; // Ajouter l'ID pour suppression éventuelle
-
-            const dateSpan = document.createElement('span');
-            dateSpan.className = 'journal-entry-date';
-            try {
-                dateSpan.textContent = new Date(entry.timestamp).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
-            } catch (e) { dateSpan.textContent = 'Date invalide'; }
-
-            const textP = document.createElement('p');
-            textP.className = 'journal-entry-text';
-            textP.textContent = entry.text; // Sécurisé
-            textP.style.whiteSpace = 'pre-wrap';
-
-            // Bouton supprimer (optionnel mais utile)
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-journal-btn button-delete'; // Utiliser classe standardisée
-            deleteBtn.innerHTML = '×'; // Ou une icône poubelle
-            deleteBtn.title = 'Supprimer cette entrée';
-            deleteBtn.setAttribute('aria-label', `Supprimer l'entrée du ${dateSpan.textContent}`);
-            deleteBtn.addEventListener('click', (event) => {
-                 event.stopPropagation();
-                 if (confirm(`Supprimer cette entrée ?\n"${entry.text.substring(0, 50)}..."`)) {
-                      deleteEntry(entry.id, listContainer);
-                 }
-            });
-
-
-            entryDiv.appendChild(deleteBtn); // Mettre le bouton avant ou après le contenu
-            entryDiv.appendChild(dateSpan);
-            entryDiv.appendChild(textP);
-            listContainer.appendChild(entryDiv);
+            entryDiv.dataset.entryId = entry.id;
+            const dateSpan = document.createElement('span'); /* ... formatage date ... */ try { dateSpan.textContent = new Date(entry.timestamp).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { dateSpan.textContent = 'Date invalide'; } dateSpan.className = 'journal-entry-date';
+            const textP = document.createElement('p'); textP.className = 'journal-entry-text'; textP.textContent = entry.text; textP.style.whiteSpace = 'pre-wrap';
+            const deleteBtn = document.createElement('button'); deleteBtn.className = 'delete-journal-btn button-delete'; deleteBtn.innerHTML = '×'; deleteBtn.title = 'Supprimer'; deleteBtn.setAttribute('aria-label', `Supprimer l'entrée`);
+            deleteBtn.addEventListener('click', (event) => { event.stopPropagation(); if (confirm(`Supprimer ?\n"${entry.text.substring(0, 50)}..."`)) { deleteEntry(entry.id, listContainer); } });
+            entryDiv.appendChild(deleteBtn); entryDiv.appendChild(dateSpan); entryDiv.appendChild(textP); listContainer.appendChild(entryDiv);
         });
+        console.log("Journal LOG: Affichage entrées terminé."); // LOG J_LOAD_5
 
     } catch (error) {
-         console.error("Erreur lors du chargement des entrées du journal:", error);
-         listContainer.innerHTML = '<p>Erreur lors du chargement des entrées.</p>';
+         console.error("Journal LOG ERROR: Erreur chargement/affichage entrées:", error); // LOG J_LOAD_ERR2
+         listContainer.innerHTML = '<p>Erreur chargement entrées.</p>';
     }
 }
 
-/**
- * Sauvegarde une nouvelle entrée de journal dans IndexedDB.
- * DOIT être appelée avec await ou dans un contexte async.
- * @param {string} text - Le contenu de l'entrée.
- * @param {HTMLElement} listContainer - L'élément où afficher la liste (pour rafraîchissement).
- * @param {HTMLTextAreaElement} inputElement - L'élément textarea (pour le vider).
- */
+/** Sauvegarde une nouvelle entrée dans IndexedDB. */
 async function saveEntry(text, listContainer, inputElement) {
+    console.log("Journal LOG: Début saveEntry."); // LOG J_SAVE_1
     const trimmedText = text.trim();
-    if (!trimmedText) {
-        alert("L'entrée de journal ne peut pas être vide.");
-        return;
-    }
+    if (!trimmedText) { alert("L'entrée ne peut pas être vide."); return; }
 
-    const newEntry = {
-        // Pas besoin d'ID, IndexedDB le génère (autoIncrement)
-        timestamp: new Date().toISOString(),
-        text: trimmedText
-    };
+    const newEntry = { timestamp: new Date().toISOString(), text: trimmedText }; // ID auto par IDB
 
     try {
-        await addJournalEntry(newEntry); // Appel asynchrone
-        // console.log('Entrée de journal ajoutée à IndexedDB.');
+        console.log("Journal LOG: Appel addJournalEntry (IndexedDB)...", newEntry); // LOG J_SAVE_2
+        await addJournalEntry(newEntry);
+        console.log("Journal LOG: addJournalEntry terminé."); // LOG J_SAVE_3
 
-        // Effacer le textarea et rafraîchir la liste
         if (inputElement) inputElement.value = '';
-        await loadAndDisplayEntries(listContainer); // Recharger pour afficher
+        console.log("Journal LOG: Appel loadAndDisplayEntries après sauvegarde..."); // LOG J_SAVE_4
+        await loadAndDisplayEntries(listContainer);
+        console.log("Journal LOG: Fin loadAndDisplayEntries après sauvegarde."); // LOG J_SAVE_5
 
     } catch (error) {
-        console.error("Erreur lors de la sauvegarde de l'entrée dans IndexedDB:", error);
-        alert("Une erreur est survenue lors de la sauvegarde de l'entrée.");
+        console.error("Journal LOG ERROR: Erreur dans saveEntry:", error); // LOG J_SAVE_ERR
+        alert("Erreur sauvegarde entrée journal.");
     }
 }
 
 
-/**
- * Initialise l'interface du journal dans le conteneur donné.
- * @param {HTMLElement} containerElement - L'élément DOM où injecter l'interface du journal.
- */
-export async function initJournal(containerElement) { // Rendre async pour await loadAndDisplayEntries
-    if (!containerElement) {
-        console.error("Conteneur journal introuvable.");
-        return;
-    }
+/** Initialise l'interface du journal. */
+export async function initJournal(containerElement) {
+    console.log("Journal LOG: Initialisation..."); // LOG J_INIT_1
+    if (!containerElement) { console.error("Journal LOG ERROR: Conteneur principal introuvable."); return; } // LOG J_INIT_ERR1
 
     containerElement.innerHTML = `
         <h2>Mon Journal Personnel</h2>
         <div class="journal-form">
             <label for="journalEntryInput" class="visually-hidden">Entrée de journal :</label>
-            <textarea id="journalEntryInput" placeholder="Écrivez ici vos pensées..." rows="5" aria-label="Nouvelle entrée de journal"></textarea>
-            <button id="saveJournalEntryBtn" class="button-primary">Enregistrer l'entrée</button> <!-- ID bouton mis à jour -->
+            <textarea id="journalEntryInput" placeholder="Écrivez ici..." rows="5" aria-label="Nouvelle entrée de journal"></textarea>
+            <button id="saveJournalEntryBtn" class="button-primary">Enregistrer l'entrée</button>
         </div>
         <h3>Entrées précédentes</h3>
-        <div id="journalEntriesList">
-            <p>Chargement...</p> <!-- Message initial -->
-        </div>
-    `;
+        <div id="journalEntriesList"><p>Chargement...</p></div>`;
 
     const entryInput = containerElement.querySelector('#journalEntryInput');
     const saveButton = containerElement.querySelector('#saveJournalEntryBtn');
     const entriesList = containerElement.querySelector('#journalEntriesList');
 
-    if (!entryInput || !saveButton || !entriesList) {
-        console.error("Éléments internes du journal introuvables.");
-        containerElement.querySelector('#journalEntriesList').textContent = 'Erreur initialisation.';
-        return;
-    }
+    if (!entryInput || !saveButton || !entriesList) { console.error("Journal LOG ERROR: Éléments internes introuvables."); return; } // LOG J_INIT_ERR2
 
-    // Ajouter l'écouteur pour sauvegarder (wrapper async)
+    // Listener bouton Sauvegarder
     saveButton.addEventListener('click', async () => {
-         saveButton.disabled = true; // Désactiver pendant sauvegarde
+        console.log("Journal LOG: Clic 'Enregistrer'"); // LOG J_CLICK_SAVE
+         saveButton.disabled = true;
+         console.log("Journal LOG: Appel saveEntry depuis listener..."); // LOG J_CLICK_SAVE_2
          await saveEntry(entryInput.value, entriesList, entryInput);
-         saveButton.disabled = false; // Réactiver après
+         console.log("Journal LOG: Retour saveEntry depuis listener."); // LOG J_CLICK_SAVE_3
+         saveButton.disabled = false;
     });
+    console.log("Journal LOG: Listener bouton 'Enregistrer' ajouté."); // LOG J_INIT_3
 
-     // Permettre ajout avec Ctrl+Enter ou Cmd+Enter
+     // Listener Ctrl+Enter
      entryInput.addEventListener('keydown', async (event) => {
           if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                event.preventDefault();
-               saveButton.disabled = true;
-               await saveEntry(entryInput.value, entriesList, entryInput);
-               saveButton.disabled = false;
+               console.log("Journal LOG: Ctrl+Enter détecté."); // LOG J_KEYDOWN_SAVE
+               saveButton.click(); // Déclencher le clic sur le bouton
           }
      });
+     console.log("Journal LOG: Listener keydown ajouté."); // LOG J_INIT_4
 
-    // Charger et afficher les entrées existantes au démarrage de la vue
-    // Utiliser try/catch ici aussi car c'est le premier chargement
+    // Chargement initial
+    console.log("Journal LOG: Appel initial loadAndDisplayEntries..."); // LOG J_INIT_5
     try {
          await loadAndDisplayEntries(entriesList);
+         console.log("Journal LOG: Fin loadAndDisplayEntries initial."); // LOG J_INIT_6
     } catch(error) {
-         console.error("Erreur lors du chargement initial du journal:", error);
+         console.error("Journal LOG ERROR: Erreur chargement initial:", error); // LOG J_INIT_ERR3
          entriesList.innerHTML = '<p>Impossible de charger les entrées.</p>';
     }
+    console.log("Journal LOG: Initialisation terminée."); // LOG J_INIT_7
 }
