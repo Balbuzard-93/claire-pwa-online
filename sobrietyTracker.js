@@ -73,17 +73,17 @@ function renderSobrietyCounter(containerElement, startDate) { // startDate est u
         startButton.className = 'button-primary';
         startButton.textContent = 'Commencer mon suivi';
         startButton.addEventListener('click', () => {
-            console.log("Sobriety LOG: Clic sur 'Commencer'."); // LOG S_CLICK_START
-            const nowISO = new Date().toISOString(); // Utiliser ISO string pour sauvegarde
-            console.log("Sobriety LOG: Tentative sauvegarde date:", nowISO); // LOG S_CLICK_SAVE
-            if (saveSobrietyStartDate(nowISO)) { // Utilise fonction storageUtils
-                console.log("Sobriety LOG: Sauvegarde réussie, re-rendu compteur..."); // LOG S_CLICK_SUCCESS
-                renderSobrietyCounter(containerElement, nowISO);
-            } else {
-                 console.error("Sobriety LOG ERROR: Échec sauvegarde date début."); // LOG S_CLICK_ERR
-                 // L'alerte est déjà dans saveSobrietyStartDate
-            }
-        });
+    console.log("Sobriety LOG: Clic sur 'Commencer'.");
+    const nowISO = new Date().toISOString();
+    console.log("Sobriety LOG: Tentative sauvegarde date:", nowISO, `(Type: ${typeof nowISO})`); // <<< AJOUTER TYPEOF
+    // *** Vérifier que c'est bien saveSobrietyStartDate qui est appelée ***
+    if (saveSobrietyStartDate(nowISO)) { // <<< Appel direct de la fonction importée
+        console.log("Sobriety LOG: Sauvegarde réussie, re-rendu compteur...");
+        renderSobrietyCounter(containerElement, nowISO);
+    } else {
+         console.error("Sobriety LOG ERROR: Échec sauvegarde date début (retour de saveSobrietyStartDate était false)."); // Message plus précis
+    }
+});
         containerElement.appendChild(startButton);
     }
     console.log("Sobriety LOG: Fin renderSobrietyCounter."); // LOG S_RENDER_4
