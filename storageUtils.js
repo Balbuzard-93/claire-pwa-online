@@ -122,7 +122,24 @@ function saveDataToLS(key, data) { /* ... */ }
 
 // ** LOCALSTORAGE **
 export function getSobrietyStartDate() { /* ... */ }
-export function saveSobrietyStartDate(dateString) { /* ... */ }
+export function saveSobrietyStartDate(dateString) {
+    console.log(`Storage LOG: saveSobrietyStartDate appelée avec: [${dateString}] (Type: ${typeof dateString})`); // <<< LOG AJOUTÉ
+    if(typeof dateString !== 'string') {
+        console.warn("Storage LOG: saveSobrietyStartDate - Échec type check, retourne false."); // Log échec type check
+        return false;
+    }
+    try {
+        localStorage.setItem(LS_SOBRIETY_START_DATE_KEY, dateString);
+        console.log("Storage LOG: Sauvegarde LS date sobriété OK pour", dateString);
+        return true;
+    } catch (e) {
+        // ... (catch block comme avant) ...
+         console.error("Err sauvegarde date sobriété:", e);
+         console.log("Storage LOG: Affichage alerte pour erreur sauvegarde date.");
+         if(e.name === 'QuotaExceededError' || /* ... */) { alert("Stockage plein."); } else { alert("Erreur sauvegarde date."); }
+         return false;
+    }
+}
 export function getEarnedBadgesFromStorage() { /* ... */ }
 export function saveEarnedBadgesToStorage(badgeIds) { /* ... */ }
 export function getZenModeState() { /* ... */ }
