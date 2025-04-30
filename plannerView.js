@@ -24,8 +24,7 @@ async function deleteTask(taskId, dateStr) { // Reçoit date
     currentPlannerData.tasks = currentPlannerData.tasks.filter(task => task.id !== taskId);
     const taskElement = document.querySelector(`#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${taskId}"]`);
     if (taskElement) taskElement.remove();
-    try { await savePlannerForDate(dateStr, currentPlannerData); const ul=document.getElementById('plannerTaskList'); if(ul&¤tPlannerData.tasks.length===0) ul.innerHTML='<p class="no-tasks-message">Aucune tâche.</p>'; } // Utilise date reçue
-    catch(error) { console.error("Erreur sauvegarde plan suppression:", error); alert("Err suppression tâche."); refreshPlannerView(); /* Force refresh */ }
+try { await savePlannerForDate(dateStr, currentPlannerData); const ul=document.getElementById('plannerTaskList'); if(ul && currentPlannerData.tasks.length===0) ul.innerHTML='<p class="no-tasks-message">Aucune tâche.</p>'; } // Utilise date reçue et && logique    catch(error) { console.error("Erreur sauvegarde plan suppression:", error); alert("Err suppression tâche."); refreshPlannerView(); /* Force refresh */ }
 }
 
 /** Ajoute tâche */
