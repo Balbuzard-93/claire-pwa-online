@@ -107,13 +107,23 @@ function showView(viewId) {
         else if (viewId === 'plannerView') refreshPlannerView();
     }
 
-    // Activer le bouton de navigation correspondant
-    const buttonId = `show${viewId.charAt(0).toUpperCase() + viewId.slice(1)}Btn`;
+    // *** CORRECTION ICI ***
+    // Extraire le nom de base (ex: 'journal' depuis 'journalView')
+    const baseName = viewId.replace('View', '');
+    // Construire l'ID du bouton correctement (ex: showJournalBtn)
+    const buttonId = `show${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Btn`;
+    // *** FIN CORRECTION ***
+
     const buttonToActivate = document.getElementById(buttonId);
-    if (buttonToActivate) buttonToActivate.classList.add('active');
-    else console.warn(`Bouton de navigation introuvable pour l'ID: ${buttonId}`);
+    if (buttonToActivate) {
+        buttonToActivate.classList.add('active');
+    } else {
+        // Ce warning devrait disparaître après la correction
+        console.warn(`Bouton de navigation introuvable pour l'ID: ${buttonId} (construit depuis viewId: ${viewId})`);
+    }
 
     window.scrollTo(0, 0); // Scroll vers le haut
+}
 }
 
 // --- Initialisation des modules de l'application ---
