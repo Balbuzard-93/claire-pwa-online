@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Link vers le Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <!-- Meta pour la Theme Color (prise depuis le manifest) -->
+    <meta name="theme-color" content="#E6E6FA"> <!-- Lavande Pâle -->
+    <title>Clair·e - Compagnon Personnel</title>
+    <!-- Link vers la feuille de style CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Lien Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Favicon (Assurez-vous que les fichiers existent dans le dossier /icons/) -->
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+    <header>
+        <h1>Clair·e</h1>
+        <nav>
+            <!-- Icônes Emoji utilisées, avec title pour accessibilité -->
+            <button id="showSobrietyBtn" class="nav-button active" title="Suivi Sobriété">📊</button>
+            <button id="showJournalBtn" class="nav-button" title="Journal Personnel">📝</button>
+            <button id="showMoodTrackerBtn" class="nav-button" title="Suivi Humeur">😊</button>
+            <button id="showProgressBtn" class="nav-button" title="Progrès et Badges">📈</button>
+            <button id="showExercisesBtn" class="nav-button" title="Exercices Guidés">🧘‍♀️</button>
+            <button id="showRoutineBtn" class="nav-button" title="Routine Quotidienne">✅</button>
+            <button id="showPlannerBtn" class="nav-button" title="Plan du Jour">🎯</button>
+            <button id="showTestimonialsBtn" class="nav-button" title="Témoignages">💬</button>
+            <button id="showVictoriesBtn" class="nav-button" title="Musée des Victoires">🏆</button>
+            <button id="showSosBtn" class="nav-button sos-button" title="Outils SOS">🆘</button>
+            <button id="toggleZenModeBtn" class="nav-button zen-toggle-button" title="Basculer Mode Zen/Normal"></button> <!-- Texte mis par JS -->
+        </nav>
+    </header>
+
+    <main id="app">
+        <!-- Vue Suivi -->
+        <div id="sobrietyView" class="view-section active">
+            <div id="dailyMotivation" class="motivation-section">
+                <!-- Message injecté par JS -->
+            </div>
+            <h2>Mon Suivi</h2>
+            <div id="sobrietyTrackerContainer">
+                 <!-- Compteur/Bouton injecté par JS -->
+            </div>
+        </div>
+
+        <!-- Vue Journal -->
+        <div id="journalView" class="view-section">
+             <!-- Contenu injecté par journal.js -->
+        </div>
+
+        <!-- Vue Humeur -->
+        <div id="moodTrackerView" class="view-section">
+             <!-- Contenu injecté par moodTracker.js -->
+        </div>
+
+        <!-- Vue Progrès -->
+        <div id="progressView" class="view-section">
+             <!-- Contenu injecté par progressView.js -->
+             <!-- Inclut: sobrietyProgress, badgesDisplay, moodChartContainer -->
+        </div>
+
+        <!-- Vue Exercices -->
+        <div id="exercisesView" class="view-section">
+             <!-- Contenu injecté par exercisesView.js -->
+        </div>
+
+        <!-- Vue Routine -->
+        <div id="routineView" class="view-section">
+             <!-- Contenu injecté par routineView.js -->
+        </div>
+
+        <!-- Vue Planificateur -->
+        <div id="plannerView" class="view-section">
+             <!-- Contenu injecté par plannerView.js -->
+        </div>
+
+         <!-- Vue Témoignages -->
+        <div id="testimonialsView" class="view-section">
+             <!-- Contenu injecté par testimonialsView.js -->
+        </div>
+
+         <!-- Vue Victoires -->
+        <div id="victoriesView" class="view-section">
+             <!-- Contenu injecté par victoriesView.js -->
+        </div>
+
+        <!-- Vue SOS -->
+        <div id="sosView" class="view-section">
+             <!-- Contenu injecté par sosView.js -->
+        </div>
+
+    </main>
+
+    <footer>
+        <p>&copy; Clair·e - Votre Compagnon Personnel</p>
+    </footer>
+
+    <!-- Link vers le fichier JavaScript principal (type="module" est important) -->
+    <script src="app.js" type="module"></script>
+</body>
+</html>

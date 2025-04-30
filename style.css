@@ -1,0 +1,647 @@
+/* Réinitialisations de base */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+                 Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+                 "Segoe UI Symbol";
+    line-height: 1.6;
+    background-color: #f8f8fa; /* Fond général léger */
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: background-color 0.3s ease; /* Transition pour mode zen */
+}
+
+header {
+    background-color: #E6E6FA; /* Lavande pâle */
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: sticky; /* Garder le header visible */
+    top: 0;
+    z-index: 10; /* Au-dessus du contenu */
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
+}
+
+header h1 {
+    text-align: center;
+    color: #483D8B; /* Dark Slate Blue */
+    margin-bottom: 0.5rem;
+    font-size: 1.8rem;
+    transition: font-size 0.3s ease, margin-bottom 0.3s ease;
+}
+
+/* Styles pour la navigation */
+nav {
+    text-align: center;
+    margin-top: 0.5rem;
+    display: flex; /* Utiliser flexbox pour la nav */
+    flex-wrap: wrap; /* Permettre le retour à la ligne */
+    justify-content: center; /* Centrer les boutons */
+    gap: 0.5rem; /* Espacement entre les boutons */
+}
+
+.nav-button {
+    /* Styles communs pour tous les boutons de nav */
+    background-color: transparent;
+    border: 1px solid #b3b3e0; /* Bordure lavande plus foncée */
+    color: #6A5ACD; /* Slate Blue */
+    border-radius: 20px; /* Boutons arrondis */
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+    font-size: 1.5rem; /* Taille pour emojis */
+    padding: 0.4rem 0.6rem;
+    min-width: 44px; /* Accessibilité tactile */
+    line-height: 1;
+    display: inline-flex; /* Bien centrer l'emoji */
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-button:hover {
+    background-color: #dcd0ff; /* Lavande plus légère au survol */
+}
+
+.nav-button.active {
+    background-color: #6A5ACD; /* Slate Blue */
+    color: #ffffff;
+    border-color: #6A5ACD;
+    /* font-weight: bold; Peut ne pas affecter les emojis */
+}
+.nav-button:active {
+    transform: scale(0.98);
+    filter: brightness(95%);
+}
+
+/* Styles spécifiques Nav Buttons */
+.nav-button.sos-button {
+    background-color: #FF6347; /* Tomato Red */
+    color: white;
+    border-color: #FF4500; /* OrangeRed */
+}
+.nav-button.sos-button:hover {
+    background-color: #E553D; /* Plus foncé */
+    border-color: #D4402A;
+}
+.nav-button.sos-button.active {
+     background-color: #CD5C5C; /* IndianRed */
+     border-color: #B24C4C;
+     color: white;
+}
+
+.nav-button.zen-toggle-button {
+    /* Style spécifique au bouton Zen Toggle */
+    font-size: 0.85rem; /* Taille texte */
+    min-width: 80px;
+    border-color: #aaa; /* Un peu différent */
+    color: #666;
+}
+
+
+main#app {
+    flex-grow: 1; /* Prend l'espace restant */
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 800px; /* Limite la largeur sur grand écran */
+    margin: 1rem auto; /* Centre le contenu principal, ajoute marge sup */
+}
+
+/* Styles pour les sections de vue */
+.view-section {
+    display: none; /* Caché par défaut */
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+    margin-bottom: 1rem;
+    border: 1px solid #eee; /* Bordure légère par défaut */
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, padding 0.3s ease;
+}
+
+.view-section.active {
+    display: block; /* Afficher la vue active */
+}
+
+.view-section h2 {
+    color: #483D8B;
+    margin-top: 0; /* Enlever marge sup par défaut pour H2 dans section */
+    margin-bottom: 1.5rem;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.75rem;
+    font-size: 1.6rem;
+    transition: font-size 0.3s ease, margin-bottom 0.3s ease, padding-bottom 0.3s ease;
+}
+.view-section h3 {
+    color: #6A5ACD;
+    margin-top: 0;
+     margin-bottom: 1.5rem;
+     padding-bottom: 0.5rem;
+     border-bottom: 1px solid #f0f0f0;
+     text-align: center;
+     font-size: 1.3rem;
+     transition: font-size 0.3s ease, margin-bottom 0.3s ease, padding-bottom 0.3s ease, border-bottom 0.3s ease;
+}
+.view-section h4 {
+     color: #483D8B;
+     margin-bottom: 0.5rem;
+}
+
+/* Styles généraux pour les boutons (Standardisation) */
+.button-primary,
+#saveJournalEntry,
+.sobriety-counter-styles button, /* Bouton "Commencer" */
+#saveMoodEntry.save-button,
+#addTaskBtn,
+#saveRoutineBtn
+ {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: #6A5ACD; /* Couleur principale */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+}
+.button-primary:hover,
+#saveJournalEntry:hover,
+.sobriety-counter-styles button:hover,
+#saveMoodEntry.save-button:hover:not(:disabled),
+#addTaskBtn:hover:not(:disabled),
+#saveRoutineBtn:hover
+{
+     background-color: #483D8B; /* Plus foncé */
+}
+ .button-primary:active,
+#saveJournalEntry:active,
+.sobriety-counter-styles button:active,
+#saveMoodEntry.save-button:active:not(:disabled),
+#addTaskBtn:active:not(:disabled),
+#saveRoutineBtn:active
+ {
+     transform: scale(0.98);
+     filter: brightness(95%);
+ }
+ .button-primary:disabled,
+#saveMoodEntry.save-button:disabled,
+#addTaskBtn:disabled,
+#saveRoutineBtn:disabled /* Ajouter d'autres si besoin */
+ {
+     background-color: #cccccc;
+     opacity: 0.7;
+     cursor: not-allowed;
+     transform: none;
+     filter: none;
+ }
+
+.button-secondary,
+.back-button,
+.edit-routine-button,
+#newPhraseBtn /* Bouton SOS "Autre Phrase" */
+ {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    color: #6A5ACD;
+    background-color: transparent;
+    border: 1px solid #6A5ACD;
+    border-radius: 20px; /* Style arrondi */
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+ }
+ .button-secondary:hover,
+.back-button:hover,
+.edit-routine-button:hover,
+#newPhraseBtn:hover
+ {
+    background-color: #E6E6FA;
+    color: #483D8B;
+ }
+ .button-secondary:active,
+ .back-button:active,
+ .edit-routine-button:active,
+ #newPhraseBtn:active
+ {
+      transform: scale(0.98);
+      filter: brightness(95%);
+ }
+
+
+.button-delete,
+.delete-task-btn,
+.delete-victory-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 1.2em; /* Ajuster si besoin */
+    cursor: pointer;
+    padding: 0.2rem;
+    line-height: 1;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+ }
+ .button-delete:hover,
+ .delete-task-btn:hover,
+ .delete-victory-btn:hover {
+     color: #FF6347; /* Rouge */
+ }
+
+
+/* --- Styles Spécifiques à Chaque Vue --- */
+
+/* Motivation Quotidienne (#sobrietyView) */
+.motivation-section {
+    background-color: #f0f0ff;
+    border: 1px solid #e0e0ff;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,100,0.05);
+    transition: background-color 0.3s ease, border 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease, margin-bottom 0.3s ease;
+}
+.motivation-section p {
+    margin: 0;
+    font-size: 1.1em;
+    font-style: italic;
+    color: #6A5ACD;
+    line-height: 1.6;
+    transition: font-size 0.3s ease, font-style 0.3s ease, color 0.3s ease;
+}
+
+/* Suivi Sobriété (#sobrietyView) */
+.sobriety-counter-styles {
+    text-align: center;
+}
+.sobriety-counter-styles p {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+.sobriety-counter-styles strong {
+    font-size: 1.8rem;
+    color: #6A5ACD;
+    transition: font-size 0.3s ease;
+}
+/* Style du bouton "Commencer" hérité de .button-primary */
+
+
+/* Journal (#journalView) */
+#journalView .journal-form { margin-bottom: 1.5rem; }
+/* Label ajouté pour accessibilité (peut être caché visuellement) */
+#journalView .journal-form label[for="journalEntryInput"] {
+    /* Style si visible, ou classe sr-only si caché */
+    /* display: block; margin-bottom: 0.5rem; font-weight: bold; */
+}
+#journalEntryInput {
+    width: 100%; min-height: 100px; padding: 0.8rem;
+    border: 1px solid #ccc; border-radius: 5px;
+    font-family: inherit; font-size: 1rem;
+    margin-bottom: 0.8rem; resize: vertical;
+    transition: min-height 0.3s ease;
+}
+/* Style bouton hérité de .button-primary */
+#journalEntriesList { margin-top: 1rem; }
+.journal-entry {
+    margin-bottom: 1.5rem; padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+.journal-entry:last-child { border-bottom: none; margin-bottom: 0; }
+.journal-entry-date { display: block; font-size: 0.85rem; color: #777; margin-bottom: 0.4rem; transition: font-size 0.3s ease; }
+.journal-entry-text { font-size: 1rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; transition: font-size 0.3s ease, line-height 0.3s ease;}
+
+/* Humeur (#moodTrackerView) */
+.mood-instruction { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 1.5rem; transition: opacity 0.3s ease; }
+.mood-question { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #f0f0f0; transition: margin-bottom 0.3s ease, padding-bottom 0.3s ease; }
+.mood-question label { display: block; font-weight: bold; margin-bottom: 0.75rem; color: #555; }
+.mood-selector { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+.mood-selector button {
+    padding: 0.6rem 1rem; font-size: 0.9rem; background-color: #f0f0f0; color: #333;
+    border: 1px solid #dcdcdc; border-radius: 20px; cursor: pointer; flex-grow: 1; text-align: center; min-width: 80px;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease, padding 0.3s ease, font-size 0.3s ease;
+}
+.mood-buttons button { flex-basis: calc(20% - 0.5rem); min-width: 60px; }
+.energy-buttons button, .anxiety-buttons button { flex-basis: calc(33.33% - 0.5rem); }
+.mood-selector button:hover:not(:disabled) { background-color: #e0e0e0; border-color: #c0c0c0; transform: translateY(-1px); }
+.mood-selector button.selected { font-weight: bold; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+.mood-buttons button.selected { background-color: #ADD8E6; border-color: #87CEEB; color: #005683; }
+.energy-buttons button.selected { background-color: #FFDAB9; border-color: #FFA07A; color: #A0522D; }
+.anxiety-buttons button.selected { background-color: #98FB98; border-color: #3CB371; color: #006400; }
+.mood-selector button:disabled { opacity: 0.6; cursor: not-allowed; background-color: #e9e9e9; }
+.mood-selector button.selected:disabled { opacity: 0.8; box-shadow: none; }
+#saveMoodEntry.save-button { /* Utilise .button-primary */
+    display: block; width: 100%; max-width: 300px; margin: 2rem auto 1rem auto; padding: 0.9rem 1.5rem;
+    font-size: 1.1rem;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease, margin 0.3s ease, padding 0.3s ease, font-size 0.3s ease;
+}
+#moodMessage.mood-message { text-align: center; margin-top: 1rem; padding: 0.8rem; border-radius: 5px; font-weight: bold; transition: padding 0.3s ease, font-size 0.3s ease; }
+#moodMessage.success { background-color: #dff0d8; color: #3c763d; border: 1px solid #d6e9c6; }
+#moodMessage.error { background-color: #f2dede; color: #a94442; border: 1px solid #ebccd1; }
+
+/* Progrès (#progressView) */
+.progress-section { margin-bottom: 2rem; padding: 1rem; background-color: #f9f9f9; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+#sobrietyProgress { text-align: center; font-size: 1.2em; color: #333; }
+#sobrietyProgress strong { font-size: 1.8em; color: #6A5ACD; display: block; margin: 0.5rem 0; transition: font-size 0.3s ease; }
+#moodChartContainer { position: relative; height: 350px; width: 100%; padding: 1rem; transition: opacity 0.3s ease, height 0.3s ease; }
+#moodChartContainer p { text-align: center; color: #666; padding: 2rem 1rem; }
+#moodChartCanvas { display: block; width: 100% !important; height: 100% !important; }
+#badgesDisplay h3 { text-align: center; color: #483D8B; margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+#badgesList { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; padding-top: 0.5rem; transition: opacity 0.3s ease; }
+#badgesList p { text-align: center; color: #666; grid-column: 1 / -1; padding: 1rem 0; }
+.badge-item { display: flex; align-items: center; background-color: #f0f8ff; border: 1px solid #d6eaff; border-radius: 8px; padding: 0.8rem 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.badge-item:hover { transform: translateY(-2px); box-shadow: 0 3px 6px rgba(0,0,0,0.08); }
+.badge-icon { font-size: 2.5em; margin-right: 1rem; line-height: 1; }
+.badge-info { display: flex; flex-direction: column; }
+.badge-name { font-weight: bold; color: #4682B4; margin-bottom: 0.25rem; }
+.badge-description { font-size: 0.9em; color: #555; line-height: 1.4; }
+
+/* Exercices (#exercisesView) */
+.exercises-intro { text-align: center; margin-bottom: 1.5rem; color: #555; transition: opacity 0.3s ease; }
+#exerciseListContainer { }
+#exerciseList { list-style: none; padding: 0; margin: 0; }
+.exercise-list-item { background-color: #f9f9ff; border: 1px solid #e0e0ff; border-radius: 6px; padding: 1rem 1.5rem; margin-bottom: 1rem; cursor: pointer; transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease, padding 0.3s ease; }
+.exercise-list-item:hover { background-color: #f0f0ff; box-shadow: 0 2px 5px rgba(0,0,100,0.08); }
+.exercise-list-item:active { transform: scale(0.99); }
+.exercise-list-item h4 { margin-top: 0; margin-bottom: 0.5rem; color: #6A5ACD; transition: margin-bottom 0.3s ease, font-size 0.3s ease; }
+.exercise-list-item p { margin-bottom: 0; font-size: 0.95em; color: #444; transition: opacity 0.3s ease; }
+#exerciseDetail { background-color: #ffffff; padding: 1.5rem; border-radius: 8px; border: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+#exerciseDetail h3 { text-align: center; color: #6A5ACD; margin-top: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 0.75rem; }
+.exercise-steps p { line-height: 1.7; margin-bottom: 1.2rem; color: #333; transition: font-size 0.3s ease, line-height 0.3s ease, margin-bottom 0.3s ease; }
+.exercise-steps p strong { color: #483D8B; margin-right: 0.5em; display: block; margin-bottom: 0.3em; }
+/* Style .back-button hérité de .button-secondary */
+
+/* Routine (#routineView) */
+/* Label ajouté pour accessibilité */
+.routine-input-form label { /* Style si visible, ou classe sr-only */ /* font-weight: bold; margin-bottom: 0.3rem; */ }
+#routineView p { text-align: center; margin-bottom: 1.5rem; color: #555; transition: opacity 0.3s ease; }
+.routine-input-form { display: flex; flex-direction: column; gap: 0.8rem; max-width: 400px; margin: 0 auto 1.5rem auto; }
+.task-input { padding: 0.8rem; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; transition: padding 0.3s ease; }
+.task-input::placeholder { color: #aaa; }
+/* Style #saveRoutineBtn hérité de .button-primary */
+.task-list { list-style: none; padding: 0; margin: 0 auto; max-width: 500px; }
+.task-list-item { display: flex; align-items: center; padding: 0.8rem 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #f0f0f0; transition: background-color 0.2s ease, opacity 0.3s ease, padding 0.3s ease; }
+.task-list-item:last-child { border-bottom: none; }
+.task-checkbox { margin-right: 0.8rem; width: 1.3em; height: 1.3em; cursor: pointer; accent-color: #6A5ACD; flex-shrink: 0; }
+.task-text { flex-grow: 1; color: #333; transition: color 0.3s ease, text-decoration 0.3s ease, font-size 0.3s ease; cursor: pointer; word-break: break-word; }
+.task-list-item.task-completed { opacity: 0.7; }
+.task-list-item.task-completed .task-text { text-decoration: line-through; color: #777; }
+/* Style .edit-routine-button hérité de .button-secondary */
+
+/* Planificateur (#plannerView) */
+/* Label ajouté pour accessibilité */
+.planner-add-task label[for="newTaskInput"] { /* Style si visible, ou classe sr-only */ /* font-weight: bold; margin-bottom: 0.3rem; */ }
+.planner-add-task { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; margin-bottom: 2rem; padding: 1rem; background-color: #f9f9ff; border-radius: 6px; border: 1px solid #e0e0ff; }
+#newTaskInput { flex-grow: 1; padding: 0.8rem; border: 1px solid #ccc; border-radius: 5px; font-size: 1rem; min-width: 200px; }
+.energy-selector { display: flex; align-items: center; gap: 0.3rem; color: #555; font-size: 0.9em; }
+.energy-selector button {
+    background-color: #eee; border: 1px solid #ccc; color: #555; border-radius: 50%; width: 30px; height: 30px;
+    font-size: 0.9em; padding: 0; line-height: 1; cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+.energy-selector button:hover { background-color: #ddd; }
+.energy-selector button.selected { background-color: #ADD8E6; border-color: #87CEEB; color: #005683; font-weight: bold; transform: scale(1.1); }
+.energy-selector button[data-energy="null"].selected { background-color: #f0f0f0; border-color: #ccc; color: #333; }
+/* Style #addTaskBtn hérité de .button-primary */
+#plannerTaskList { list-style: none; padding: 0; margin: 0; }
+#plannerTaskList .no-tasks-message { text-align: center; color: #888; padding: 1rem 0; }
+.planner-task-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #f0f0f0; transition: opacity 0.3s ease; }
+.planner-task-item:last-child { border-bottom: none; }
+.planner-task-item .task-checkbox { width: 1.3em; height: 1.3em; cursor: pointer; accent-color: #6A5ACD; flex-shrink: 0; }
+.planner-task-item .task-text { flex-grow: 1; color: #333; transition: color 0.3s ease, text-decoration 0.3s ease; word-break: break-word; }
+.energy-indicator { font-size: 0.9em; flex-shrink: 0; padding: 0 0.3em; border-radius: 3px; }
+.energy-indicator.low { color: #3CB371; } /* Vert */
+.energy-indicator.medium { color: #FFA07A; } /* Orange pâle */
+.energy-indicator.high { color: #FF6347; } /* Rouge tomate */
+.delete-task-btn { /* Appliquer .button-delete */
+    font-size: 1.2em; /* Ajuster si différent de .button-delete standard */
+}
+.planner-task-item.task-completed { opacity: 0.6; }
+.planner-task-item.task-completed .task-text { text-decoration: line-through; color: #777; }
+
+/* Témoignages (#testimonialsView) */
+.testimonials-intro { text-align: center; margin-bottom: 2rem; color: #555; font-style: italic; transition: opacity 0.3s ease; }
+#testimonialsList { transition: opacity 0.3s ease; }
+.testimonial-item { background-color: #fafafa; border-left: 5px solid #ADD8E6; border-radius: 4px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+.testimonial-title { font-style: italic; color: #555; margin-top: 0; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px dashed #ddd; font-weight: 600; }
+.testimonial-text p { margin-bottom: 1em; line-height: 1.7; color: #333; }
+.testimonial-text p:last-child { margin-bottom: 0; }
+
+/* Victoires (#victoriesView) */
+/* Label ajouté pour accessibilité */
+.victory-add-form label[for="newVictoryInput"] { /* Style si visible, ou classe sr-only */ /* display: block; margin-bottom: 0.5rem; font-weight: bold; */ }
+.victory-add-form { margin-bottom: 2rem; padding: 1rem; background-color: #fffacd; border: 1px solid #eee8aa; border-radius: 6px; display: flex; flex-direction: column; gap: 0.8rem; }
+#newVictoryInput { width: 100%; min-height: 60px; padding: 0.8rem; border: 1px solid #ccc; border-radius: 5px; font-family: inherit; font-size: 1rem; resize: vertical; }
+#addVictoryBtn { /* Style spécifique "or" */
+    padding: 0.8rem 1.5rem; font-size: 1rem; font-weight: bold; color: #333; /* Texte foncé */ background-color: #FFD700; border: none;
+    border-radius: 5px; cursor: pointer; align-self: center; min-width: 180px;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+}
+#addVictoryBtn:hover { background-color: #f0c800; color: #000; }
+#addVictoryBtn:active { transform: scale(0.98); filter: brightness(95%); }
+#victoriesList { margin-top: 1rem; }
+#victoriesList .no-victories-message { text-align: center; color: #888; padding: 1.5rem 0; font-style: italic; }
+.victory-item { position: relative; background-color: #ffffff; border: 1px solid #eee; border-left: 4px solid #FFD700; border-radius: 4px; padding: 1rem 3rem 1rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.victory-content { }
+.victory-date { display: block; font-size: 0.8em; color: #999; margin-bottom: 0.5rem; }
+.victory-text { margin: 0; line-height: 1.6; color: #333; word-wrap: break-word; }
+.delete-victory-btn { /* Appliquer .button-delete */
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    font-size: 1.5em; /* Taille X */
+}
+
+/* SOS (#sosView) */
+.sos-intro { text-align: center; margin-bottom: 2rem; color: #555; transition: opacity 0.3s ease; }
+.sos-tool { background-color: #fff8f8; border: 1px solid #ffe0e0; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: padding 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;}
+.sos-tool h3 { color: #CD5C5C; margin-bottom: 1rem; text-align: center; border-bottom: 1px solid #ffe0e0; padding-bottom: 0.5rem; }
+.breathing-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 1rem; }
+#breathingVisualizer { width: 100px; height: 100px; background-color: #ADD8E6; border-radius: 50%; margin: 1rem auto; transition: transform 0.5s ease-in-out, background-color 0.5s ease, width 0.3s ease, height 0.3s ease; transform: scale(1); }
+@keyframes inhaleAnimation { 0% { transform: scale(1); background-color: #ADD8E6; } 100% { transform: scale(1.4); background-color: #87CEEB; } }
+@keyframes exhaleAnimation { 0% { transform: scale(1.4); background-color: #87CEEB; } 100% { transform: scale(0.8); background-color: #B0C4DE; } }
+@keyframes holdAnimation { 0% { transform: scale(1.4); background-color: #87CEEB; } 100% { transform: scale(1.4); background-color: #87CEEB; } }
+/* Durées fixes ici pour exemple, JS gère le timing réel */
+#breathingVisualizer.breathing-inhale { animation: inhaleAnimation 4s ease-in-out forwards; }
+#breathingVisualizer.breathing-hold { animation: holdAnimation 4s linear forwards; }
+#breathingVisualizer.breathing-exhale { animation: exhaleAnimation 6s ease-in-out forwards; }
+#breathingVisualizer:not(.breathing-inhale):not(.breathing-hold):not(.breathing-exhale) { transform: scale(1); background-color: #ADD8E6;}
+#breathingInstruction { min-height: 2em; text-align: center; font-weight: bold; color: #333; margin-top: 1rem; transition: min-height 0.3s ease, font-size 0.3s ease; }
+.sos-button { /* Bouton Commencer Respiration */
+    display: block; margin: 1rem auto 0 auto; padding: 0.7rem 1.5rem; font-size: 1rem; color: white; background-color: #CD5C5C; border: none;
+    border-radius: 5px; cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease, padding 0.3s ease, font-size 0.3s ease;
+}
+.sos-button:hover:not(:disabled) { background-color: #B24C4C; }
+.sos-button:active:not(:disabled) { transform: scale(0.98); filter: brightness(95%); }
+.sos-button:disabled { background-color: #cccccc; cursor: not-allowed; opacity: 0.7; transform: none; filter: none; }
+/* Le bouton "Autre Phrase" utilise .button-secondary */
+#anchoringSteps { margin-top: 0.5rem; }
+.anchoring-list { list-style-type: none; padding-left: 0; }
+.anchoring-list li { margin-bottom: 0.8rem; line-height: 1.5; padding-left: 1.5em; position: relative; transition: font-size 0.3s ease; }
+.anchoring-list li strong { position: absolute; left: 0; top: 0; font-size: 1.2em; color: #CD5C5C; }
+.anchoring-list li strong:nth-of-type(2) { position: static; font-size: 1em; color: inherit; background-color: #fff0f0; padding: 0.1em 0.3em; border-radius: 3px; margin: 0 0.2em; }
+#comfortPhrase { font-size: 1.2em; font-style: italic; text-align: center; color: #555; min-height: 3em; padding: 1rem; background-color: white; border-radius: 5px; border-left: 4px solid #CD5C5C; margin-bottom: 1rem; transition: font-size 0.3s ease, min-height 0.3s ease, padding 0.3s ease; }
+
+
+/* --- Focus Visible --- */
+:focus-visible {
+    outline: 3px solid #87CEEB; /* Bleu ciel */
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.3);
+    border-radius: 5px; /* Adapter si besoin */
+}
+*:focus:not(:focus-visible) {
+     outline: none;
+     box-shadow: none;
+}
+
+/* Classe utilitaire pour cacher visuellement mais garder accessible aux lecteurs d'écran */
+.visually-hidden {
+  position: absolute !important; /* Important pour surcharger d'autres styles */
+  height: 1px; width: 1px;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px); /* Technique standard */
+  white-space: nowrap; /* Empêche le retour à la ligne */
+  /* Optionnel: Réduit la taille physique */
+  padding: 0;
+  border: 0;
+  margin: -1px;
+}
+
+
+/* --- Styles Mode Zen --- */
+body.zen-mode { background-color: #ffffff; }
+body.zen-mode header { background-color: #fdfdfd; box-shadow: none; border-bottom: 1px solid #f0f0f0; padding: 0.8rem 1rem; }
+body.zen-mode header h1 { font-size: 1.5rem; margin-bottom: 0.3rem; }
+body.zen-mode .nav-button { padding: 0.4rem 0.8rem; font-size: 1.3rem; border-radius: 15px; border-color: #eee; color: #aaa; }
+body.zen-mode .nav-button.active { background-color: #eee; color: #555; border-color: #ddd;}
+body.zen-mode .nav-button.sos-button { background-color: #FF6347; color: white; border-color: #FF4500; opacity: 1; /* Assurer visibilité */}
+body.zen-mode .nav-button.sos-button.active { background-color: #CD5C5C; border-color: #B24C4C; }
+body.zen-mode .nav-button.zen-toggle-button { font-size: 0.85rem; border-color: #6A5ACD; color: #6A5ACD; font-weight: bold; background-color: #f0f0ff;}
+body.zen-mode .view-section { box-shadow: none; border: 1px solid #f5f5f5; background-color: #ffffff; padding: 1rem; }
+body.zen-mode .view-section h2 { font-size: 1.3rem; margin-bottom: 1rem; padding-bottom: 0.3rem; border-bottom: 1px solid #f0f0f0; }
+body.zen-mode .view-section h3 { font-size: 1.1rem; margin-bottom: 0.8rem; border-bottom: none; padding-bottom: 0; }
+body.zen-mode #moodChartContainer,
+body.zen-mode #badgesDisplay,
+body.zen-mode #testimonialsList,
+body.zen-mode .testimonials-intro,
+body.zen-mode #testimonialsView h2 { display: none !important; }
+body.zen-mode .motivation-section { background-color: transparent; border: none; box-shadow: none; padding: 0.5rem 0; margin-bottom: 1rem; border-bottom: 1px dashed #eee; }
+body.zen-mode .motivation-section p { font-size: 1em; font-style: normal; color: #666; }
+body.zen-mode #sobrietyProgress strong { font-size: 1.6em; }
+body.zen-mode .sobriety-counter-styles button { padding: 0.6rem 1rem; font-size: 0.9rem; }
+body.zen-mode .journal-entry-date { font-size: 0.8rem; }
+body.zen-mode .journal-entry-text { font-size: 0.95rem; line-height: 1.5; }
+body.zen-mode #journalEntryInput { min-height: 80px; }
+body.zen-mode #saveJournalEntry { padding: 0.7rem 1rem; }
+body.zen-mode .mood-instruction { display: none; }
+body.zen-mode .mood-question { margin-bottom: 1rem; padding-bottom: 0.5rem; }
+body.zen-mode .mood-selector button { padding: 0.5rem 0.8rem; font-size: 0.85rem; }
+body.zen-mode #saveMoodEntry.save-button { margin: 1.5rem auto 0.5rem auto; padding: 0.8rem 1.2rem; font-size: 1rem; }
+body.zen-mode #moodMessage.mood-message { padding: 0.5rem; font-size: 0.9rem; }
+body.zen-mode .exercises-intro { display: none; }
+body.zen-mode .exercise-list-item { padding: 0.8rem 1rem; background-color: #fdfdff; }
+body.zen-mode .exercise-list-item p { display: none; }
+body.zen-mode .exercise-list-item h4 { margin-bottom: 0; font-size: 1rem;}
+body.zen-mode #exerciseDetail .exercise-steps p { font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem; }
+body.zen-mode .back-button { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin-bottom: 1rem;}
+body.zen-mode #routineView p { display: none; } /* Intro routine */
+body.zen-mode .task-input { padding: 0.7rem; }
+body.zen-mode #saveRoutineBtn { padding: 0.8rem 1.2rem; }
+body.zen-mode .task-list-item { padding: 0.6rem 0.4rem; }
+body.zen-mode .task-text { font-size: 0.95rem; }
+body.zen-mode .edit-routine-button { padding: 0.5rem 1rem; font-size: 0.85rem; margin-top: 1rem; }
+body.zen-mode .planner-add-task { padding: 0.8rem; background-color: #fdfdff; border-color: #f0f0f0; }
+body.zen-mode #newTaskInput { padding: 0.7rem; }
+body.zen-mode .energy-selector button { width: 28px; height: 28px; font-size: 0.8em; }
+body.zen-mode #addTaskBtn { padding: 0.7rem 1rem; font-size: 0.85rem; }
+body.zen-mode .planner-task-item { padding: 0.6rem 0.4rem; gap: 0.5rem;}
+body.zen-mode .planner-task-item .task-text { font-size: 0.95rem; }
+body.zen-mode .delete-task-btn { font-size: 1.1em; }
+body.zen-mode .sos-intro { display: none; }
+body.zen-mode .sos-tool { padding: 1rem; background-color: #fffafa; border-color: #fff0f0; }
+body.zen-mode #breathingVisualizer { width: 80px; height: 80px; }
+body.zen-mode #breathingInstruction { font-size: 0.95rem; min-height: 1.5em; }
+body.zen-mode .sos-button { padding: 0.6rem 1.2rem; font-size: 0.9rem; }
+body.zen-mode .anchoring-list li { font-size: 0.95rem; }
+body.zen-mode #comfortPhrase { font-size: 1.1em; padding: 0.8rem; min-height: 2.5em; }
+body.zen-mode .victory-add-form { padding: 0.8rem; background-color: #fffef0; border-color: #f5f0c5;}
+body.zen-mode #newVictoryInput { min-height: 50px; padding: 0.7rem; font-size: 0.95rem;}
+body.zen-mode #addVictoryBtn { padding: 0.7rem 1.2rem; font-size: 0.9rem;}
+body.zen-mode .victory-item { padding: 0.8rem 2.5rem 0.8rem 1rem; border-left-width: 3px;}
+body.zen-mode .victory-date { font-size: 0.75em; }
+body.zen-mode .victory-text { font-size: 0.95rem; line-height: 1.5;}
+body.zen-mode .delete-victory-btn { font-size: 1.3em; top: 0.3rem; right: 0.3rem;}
+
+footer { text-align: center; padding: 1rem; margin-top: auto; /* Pousse le footer en bas */ font-size: 0.9em; color: #666; background-color: #f0f0f0; transition: all 0.3s ease; flex-shrink: 0; /* Empêche de rétrécir */ }
+body.zen-mode footer { padding: 0.5rem; font-size: 0.8em; color: #aaa; background-color: #f9f9f9; margin-top: 0.5rem; }
+
+/* Media Queries */
+@media (max-width: 768px) {
+     /* Ajustements pour tablettes ou grands téléphones si besoin */
+     main#app { padding: 1rem; }
+}
+
+@media (max-width: 600px) {
+    header h1 { font-size: 1.5rem; }
+    nav { gap: 0.3rem; /* Rapprocher boutons nav */ }
+    .nav-button { font-size: 1.3rem; padding: 0.3rem 0.5rem;} /* Ajuster taille/padding emoji */
+    main#app { padding: 0.8rem; } /* Moins de padding sur petit écran */
+    .view-section { padding: 1rem; }
+    .view-section h2 { font-size: 1.4rem; }
+    .view-section h3 { font-size: 1.2rem; }
+
+    /* Ajustements Mode Zen sur mobile */
+     body.zen-mode header h1 { font-size: 1.3rem; }
+     body.zen-mode .nav-button { font-size: 1.2rem; padding: 0.3rem 0.4rem;}
+     body.zen-mode main#app { padding: 0.5rem; } /* Encore moins de padding en Zen mobile */
+     body.zen-mode .view-section { padding: 0.8rem; }
+     body.zen-mode .view-section h2 { font-size: 1.1rem; }
+     body.zen-mode .view-section h3 { font-size: 1rem; }
+
+     /* Ajustements responsives pour éléments spécifiques */
+      .mood-buttons button { flex-basis: calc(33.33% - 0.5rem); min-width: 50px;} /* 3 par ligne sur mobile */
+      .energy-buttons button, .anxiety-buttons button { flex-basis: calc(33.33% - 0.5rem); }
+       #badgesList { grid-template-columns: 1fr; } /* Une colonne */
+       .badge-icon { font-size: 2em; margin-right: 0.8rem; }
+       .badge-item { padding: 0.6rem 0.8rem; }
+       .planner-add-task { flex-direction: column; align-items: stretch; } /* Formulaire plan en colonne */
+       .energy-selector { justify-content: center; margin-top: 0.5rem;}
+       #addTaskBtn { width: 100%; margin-top: 0.5rem;}
+}
+
+/* Styles pour le bouton de mise à jour SW (exemple) */
+.update-available-button {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #483D8B; /* Dark Slate Blue */
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 1001; /* Au-dessus de tout */
+    opacity: 0.95;
+    transition: opacity 0.3s ease;
+}
+.update-available-button:hover {
+    opacity: 1;
+}
+.update-available-button:disabled {
+    background-color: #aaa;
+    cursor: default;
+}
