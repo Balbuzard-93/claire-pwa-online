@@ -1,9 +1,9 @@
-// moodTracker.js (Version Corrigée v3 - Vérification Date Stricte + Logs)
-import { getMoodEntryForDate, saveMoodEntry, getCurrentDateString } from './storageUtils.js';
+// moodTracker.js (Version Corrigée v4 - Date Locale + Logs + Fix parseInt)
+import { getMoodEntryForDate, saveMoodEntry } from './storageUtils.js'; // Ne pas importer getCurrentDateString
 
 let currentSelection = { mood: null, energy: null, anxiety: null };
 let todaysExistingEntry = null;
-// Pas de variable globale 'todayString', on l'obtient quand nécessaire
+// Pas de variable globale 'todayString', obtenue localement si besoin
 
 /** Vérifie si prêt à sauvegarder */
 function checkIfReadyToSave(saveButton) {
@@ -21,14 +21,23 @@ function updateUIAfterRecording(containerElement) {
      const entryExists = !!todaysExistingEntry;
      messageElement.textContent = entryExists ? "Humeur enregistrée pour aujourd'hui. Revenez demain !" : '';
      messageElement.className = entryExists ? 'mood-message success' : 'mood-message';
-     selectionButtons.forEach(button => { button.disabled = entryExists; const group = button.dataset.group; const value = button.dataset.value; let isSelected = false; if (entryExists && todaysExistingEntry[group] !== undefined && String(todaysExistingEntry[group]) === value) { isSelected = true; } else if (!entryExists && currentSelection[group] !== null && String(currentSelection[group]) === value) { isSelected = true; } button.classList.toggle('selected', isSelected); });
+     selectionButtons.forEach(button => {
+          button.disabled = entryExists;
+          const group = button.dataset.group;
+          const value = button.dataset.value;
+          let isSelected = false;
+          if (entryExists && todaysExistingEntry[group] !== undefined && String(todaysExistingEntry[group]) === value) { isSelected = true; }
+          else if (!entryExists && currentSelection[group] !== null && String(currentSelection[group]) === value) { isSelected = true; }
+          button.classList.toggle('selected', isSelected);
+     });
      if (entryExists) { currentSelection = { mood: todaysExistingEntry.mood, energy: todaysExistingEntry.energy, anxiety: todaysExistingEntry.anxiety }; }
-     checkIfReadyToSave(saveButton); // Appeler après mise à jour état
+     // Ne pas reset currentSelection si !entryExists, la sélection est en cours
+     checkIfReadyToSave(saveButton);
 }
 
 /** Charge l'entrée du jour */
 async function loadAndCheckMoodForToday(containerElement, dateStr) {
-    console.log("Mood LOG: Début loadAndCheckMoodForToday pour", dateStr); // Log la date reçue
+    // console.log("Mood LOG: Début loadAndCheckMoodForToday pour", dateStr);
     if (!dateStr || typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
          console.error("Mood LOG ERROR: dateStr invalide reçue par loadAndCheckMoodForToday:", dateStr);
          todaysExistingEntry = null;
@@ -36,11 +45,13 @@ async function loadAndCheckMoodForToday(containerElement, dateStr) {
          return;
     }
     try {
-        // console.log("Mood LOG: Appel getMoodEntryForDate pour", dateStr);
-        todaysExistingEntry = await getMoodEntryForDate(dateStr); // Utilise dateStr
+        todaysExistingEntry = await getMoodEntryForDate(dateStr);
         // console.log("Mood LOG: Entrée récupérée:", todaysExistingEntry);
-    } catch (error) { console.error("Mood LOG ERROR: Erreur chargement humeur du jour:", error); todaysExistingEntry = null; }
-    updateUIAfterRecording(containerElement);
+    } catch (error) {
+         console.error("Mood LOG ERROR: Erreur chargement humeur du jour:", error);
+         todaysExistingEntry = null;
+    }
+    updateUIAfterRecording(containerElement); // Mettre à jour UI basé sur todaysExistingEntry
     // console.log("Mood LOG: Fin loadAndCheckMoodForToday");
 }
 
@@ -48,12 +59,17 @@ async function loadAndCheckMoodForToday(containerElement, dateStr) {
 async function saveMood(containerElement, dateStr) {
     const saveButton = containerElement.querySelector('#saveMoodEntry');
     if (!saveButton || saveButton.disabled) return;
-    if(!dateStr){ console.error("Mood LOG ERROR: dateStr non définie dans saveMood"); return; } // Vérification date
+    if(!dateStr){ console.error("Mood LOG ERROR: dateStr non définie dans saveMood"); return; }
 
     // console.log("Mood LOG: Début saveMood pour", dateStr);
     // Re-vérification existence
-    try { const existing = await getMoodEntryForDate(dateStr); if (existing) { alert("Humeur déjà enregistrée."); todaysExistingEntry = existing; updateUIAfterRecording(containerElement); return; } }
-    catch(error) { console.error("Mood LOG ERROR: Erreur re-vérification:", error); alert("Erreur vérification données."); return; }
+    try {
+        const existing = await getMoodEntryForDate(dateStr);
+        if (existing) {
+            alert("Humeur déjà enregistrée.");
+            todaysExistingEntry = existing; updateUIAfterRecording(containerElement); return;
+        }
+    } catch(error) { console.error("Mood LOG ERROR: Erreur re-vérification:", error); alert("Erreur vérification données."); return; }
 
     // Vérification sélection
     if (currentSelection.mood === null || currentSelection.energy === null || currentSelection.anxiety === null) { alert("Veuillez sélectionner une option par catégorie."); return; }
@@ -61,16 +77,16 @@ async function saveMood(containerElement, dateStr) {
     // Création entrée (avec parseInt corrigé)
     const newEntry = {
         date: dateStr,
-        mood: parseInt(currentSelection.mood, 10),
-        energy: parseInt(currentSelection.energy, 10),
-        anxiety: parseInt(currentSelection.anxiety, 10)
+        mood: parseInt(currentSelection.mood, 10),    // Base 10 ajoutée
+        energy: parseInt(currentSelection.energy, 10),  // Base 10 ajoutée
+        anxiety: parseInt(currentSelection.anxiety, 10) // Base 10 ajoutée
     };
     if (isNaN(newEntry.mood) || isNaN(newEntry.energy) || isNaN(newEntry.anxiety)) { console.error("Mood LOG ERROR: Impossible de parser sélection:", currentSelection); alert("Erreur interne données humeur."); return; }
 
     // Sauvegarde
     try {
         saveButton.disabled = true;
-        await saveMoodEntry(newEntry);
+        await saveMoodEntry(newEntry); // Appel storageUtils
         todaysExistingEntry = newEntry;
         updateUIAfterRecording(containerElement);
     } catch (error) {
@@ -85,15 +101,27 @@ export async function initMoodTracker(containerElement) {
     // console.log("Mood LOG: Initialisation...");
     if (!containerElement) { console.error("Mood LOG ERROR: Conteneur introuvable."); return; }
 
-    // *** OBTENIR LA DATE DE MANIÈRE FIABLE ICI ***
-    const todayStringForInit = getCurrentDateString();
-    console.log("Mood LOG: Date pour init:", todayStringForInit); // Log pour vérifier
+    // *** OBTENIR LA DATE DIRECTEMENT ICI ***
+    let todayStringForInit;
+    try {
+        const now = new Date();
+        const year = now.getUTCFullYear();
+        const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
+        const day = now.getUTCDate().toString().padStart(2, '0');
+        todayStringForInit = `${year}-${month}-${day}`;
+        console.log("Mood LOG: Date pour init (calculée localement):", todayStringForInit);
+    } catch (e) {
+         console.error("Mood LOG FATAL: Erreur calcul date init:", e);
+         containerElement.innerHTML = "<p>Erreur interne date.</p>";
+         return;
+    }
+     // *** FIN OBTENTION DATE ***
 
     // Vérifier si la date obtenue est valide avant de continuer
     if (!todayStringForInit || typeof todayStringForInit !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(todayStringForInit)) {
-        console.error("Mood LOG FATAL: Impossible d'obtenir une date valide pour l'initialisation !");
-        containerElement.innerHTML = "<p>Erreur interne : Impossible de déterminer la date actuelle.</p>";
-        return; // Arrêter l'initialisation
+        console.error("Mood LOG FATAL: Date invalide pour l'initialisation !");
+        containerElement.innerHTML = "<p>Erreur interne : Date invalide.</p>";
+        return;
     }
 
     // Réinitialiser états locaux
@@ -134,14 +162,21 @@ export async function initMoodTracker(containerElement) {
 
     // Listener bouton Sauvegarder
     saveButton.addEventListener('click', async () => {
-        const currentDateOnClick = getCurrentDateString(); // Date au moment du clic
-        // console.log("Mood LOG: Clic 'Enregistrer Humeur'");
-        await saveMood(containerElement, currentDateOnClick); // *** Passer date ***
+        // Recalculer la date JUSTE avant de sauvegarder pour max fiabilité
+        let dateForSave;
+        try {
+             const nowClick = new Date(); const yC=nowClick.getUTCFullYear(); const mC=(nowClick.getUTCMonth()+1).toString().padStart(2,'0'); const dC=nowClick.getUTCDate().toString().padStart(2,'0');
+             dateForSave = `${yC}-${mC}-${dC}`;
+        } catch(e) {
+             console.error("Mood LOG FATAL: Erreur calcul date au clic:", e); alert("Erreur date."); return;
+        }
+        // console.log("Mood LOG: Clic 'Enregistrer Humeur' pour date", dateForSave);
+        await saveMood(containerElement, dateForSave);
     });
     // console.log("Mood LOG: Listener bouton 'Enregistrer' ajouté.");
 
-    // Charger l'état initial en passant la date déjà obtenue
+    // Charger l'état initial en passant la date obtenue au début
     // console.log("Mood LOG: Appel initial loadAndCheckMoodForToday...");
-    await loadAndCheckMoodForToday(containerElement, todayStringForInit); // *** Passer date ici ***
+    await loadAndCheckMoodForToday(containerElement, todayStringForInit);
     // console.log("Mood LOG: Initialisation terminée.");
 }
