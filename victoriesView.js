@@ -1,161 +1,146 @@
-// victoriesView.js
-import { getVictories, saveVictories } from './storageUtils.js';
+// victoriesView.js (Version utilisant IndexedDB via storageUtils.js)
+import { getVictories, addVictory as addVictoryToDB, deleteVictory as deleteVictoryFromDB } from './storageUtils.js'; // Renommer imports pour éviter conflits
 
 /**
- * Supprime une victoire de la liste et sauvegarde.
+ * Supprime une victoire de IndexedDB et rafraîchit la liste.
  * @param {number} victoryId - L'ID unique de la victoire à supprimer.
  */
-function deleteVictory(victoryId) {
-    const currentVictories = getVictories();
-    // S'assurer que c'est bien un tableau
-    if (!Array.isArray(currentVictories)) return;
-
-    const updatedVictories = currentVictories.filter(v => v.id !== victoryId);
-
-    if (saveVictories(updatedVictories)) {
-        displayVictoriesList(); // Rafraîchir la liste après suppression
-    } else {
-        // Erreur gérée (alerte) dans saveVictories
-        console.error("Échec de la sauvegarde après suppression de victoire.");
+async function deleteVictory(victoryId) { // Rendre async
+    try {
+        await deleteVictoryFromDB(victoryId); // Appel async à storageUtils
+        await displayVictoriesList(); // Recharger la liste (devient async)
+    } catch (error) {
+        console.error("Erreur lors de la suppression de la victoire:", error);
+        alert("Erreur lors de la suppression de la victoire.");
     }
 }
 
 /**
- * Affiche la liste des victoires enregistrées.
+ * Affiche la liste des victoires depuis IndexedDB.
+ * Devient une fonction async.
  */
-function displayVictoriesList() {
+async function displayVictoriesList() { // Rendre async
     const listContainer = document.getElementById('victoriesList');
     if (!listContainer) { console.error("Conteneur #victoriesList introuvable."); return; }
 
-    const victories = getVictories();
-    listContainer.innerHTML = ''; // Nettoyer
+    listContainer.innerHTML = '<p>Chargement des victoires...</p>'; // Message chargement
 
-    if (victories.length === 0) {
-        listContainer.innerHTML = '<p class="no-victories-message">Votre musée est vide pour le moment. Ajoutez votre première victoire ! ✨</p>';
-        return;
-    }
+    try {
+        const victories = await getVictories(); // Appel async
+        listContainer.innerHTML = ''; // Vider après chargement réussi
 
-    // Trier par date décroissante (plus récent en premier)
-    victories.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    victories.forEach(victory => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'victory-item';
-        itemDiv.dataset.victoryId = victory.id;
-
-        let formattedDate = 'Date inconnue';
-        try {
-             formattedDate = new Date(victory.timestamp).toLocaleDateString('fr-FR', {
-                year: 'numeric', month: 'short', day: 'numeric' // Format plus court
-            });
-        } catch(e) { console.warn("Date victoire invalide:", victory.timestamp); }
-
-
-        // Sécuriser l'affichage du texte
-        const textP = document.createElement('p');
-        textP.className = 'victory-text';
-        textP.textContent = victory.text || ''; // Assurer string
-
-        // Construire l'innerHTML (plus simple mais moins sécurisé si text contenait du HTML)
-        // Alternative: construire avec appendChild comme dans d'autres modules
-        itemDiv.innerHTML = `
-            <div class="victory-content">
-                <span class="victory-date">${formattedDate}</span>
-                ${textP.outerHTML} <!-- Insérer le paragraphe sécurisé -->
-            </div>
-            <button class="delete-victory-btn button-delete" title="Supprimer cette victoire" aria-label="Supprimer la victoire: ${victory.text || 'sans titre'}">×</button>
-        `;
-
-        // Ajouter l'écouteur pour le bouton supprimer
-        const deleteBtn = itemDiv.querySelector('.delete-victory-btn');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                // Utiliser textContent du p créé plus haut pour le confirm
-                if (confirm(`Supprimer cette victoire ?\n"${textP.textContent}"`)) {
-                    deleteVictory(victory.id);
-                }
-            });
+        if (!Array.isArray(victories) || victories.length === 0) {
+            listContainer.innerHTML = '<p class="no-victories-message">Votre musée est vide. Ajoutez votre première victoire ! ✨</p>';
+            return;
         }
 
-        listContainer.appendChild(itemDiv);
-    });
+        // Trier par date décroissante
+        victories.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        victories.forEach(victory => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'victory-item';
+            itemDiv.dataset.victoryId = victory.id;
+
+            let formattedDate = 'Date inconnue';
+            try { formattedDate = new Date(victory.timestamp).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' }); } catch(e){}
+
+            const textP = document.createElement('p');
+            textP.className = 'victory-text';
+            textP.textContent = victory.text || '';
+
+            itemDiv.innerHTML = `
+                <div class="victory-content">
+                    <span class="victory-date">${formattedDate}</span>
+                    ${textP.outerHTML}
+                </div>
+                <button class="delete-victory-btn button-delete" title="Supprimer cette victoire" aria-label="Supprimer la victoire: ${victory.text || 'sans titre'}">×</button>
+            `;
+
+            const deleteBtn = itemDiv.querySelector('.delete-victory-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Supprimer "${textP.textContent}" ?`)) {
+                        // Pas besoin d'await ici car on rafraîchit après
+                        deleteVictory(victory.id);
+                    }
+                });
+            }
+            listContainer.appendChild(itemDiv);
+        });
+
+    } catch (error) {
+        console.error("Erreur chargement des victoires:", error);
+        listContainer.innerHTML = '<p>Erreur lors du chargement de vos victoires.</p>';
+    }
 }
 
 /**
- * Ajoute une nouvelle victoire à la liste.
+ * Ajoute une nouvelle victoire à IndexedDB.
  */
-function addVictory() {
+async function addVictory() { // Rendre async
     const inputElement = document.getElementById('newVictoryInput');
     if(!inputElement) return;
     const text = inputElement.value.trim();
-
-    if (!text) {
-        alert("Veuillez décrire votre victoire.");
-        return;
-    }
+    if (!text) { alert("Veuillez décrire votre victoire."); return; }
 
     const newVictory = {
-        id: Date.now(), // Utiliser timestamp comme ID unique
-        timestamp: new Date().toISOString(), // Format standard pour stockage
+        // L'ID sera généré par IndexedDB (autoIncrement)
+        timestamp: new Date().toISOString(),
         text: text
     };
 
-    const currentVictories = getVictories(); // Récupère le tableau actuel
-    // Ajout au début pour affichage récent en premier sans re-tri complet
-    const updatedVictories = [newVictory, ...currentVictories];
+    const addButton = document.getElementById('addVictoryBtn'); // Référence au bouton
 
-    if (saveVictories(updatedVictories)) {
-        inputElement.value = ''; // Nettoyer l'input
-        displayVictoriesList(); // Rafraîchir la liste complète
+    try {
+        if (addButton) addButton.disabled = true; // Désactiver pendant ajout
+        await addVictoryToDB(newVictory); // Appel async
+        inputElement.value = '';
+        await displayVictoriesList(); // Rafraîchir (async)
+    } catch (error) {
+        console.error("Erreur ajout victoire:", error);
+        alert("Erreur lors de l'enregistrement de la victoire.");
+    } finally {
+         if (addButton) addButton.disabled = false; // Réactiver
     }
-    // Erreur gérée dans saveVictories
 }
-
 
 /**
  * Initialise la vue du Musée des Victoires.
- * @param {HTMLElement} containerElement - L'élément DOM où injecter l'interface.
  */
-export function initVictoriesView(containerElement) {
+export async function initVictoriesView(containerElement) { // Rendre async
     if (!containerElement) { console.error("Conteneur vue Victoires introuvable."); return; }
 
-    // Créer la structure HTML de base
     containerElement.innerHTML = `
         <h2>Musée des Victoires</h2>
         <div class="victory-add-form">
              <label for="newVictoryInput" class="visually-hidden">Nouvelle victoire :</label>
-            <textarea id="newVictoryInput" placeholder="Quelle petite ou grande victoire célébrer ?" rows="3" aria-label="Nouvelle victoire" maxlength="300"></textarea> <!-- Limite longueur -->
-            <button id="addVictoryBtn">Ajouter au musée ✨</button>
+            <textarea id="newVictoryInput" placeholder="Quelle victoire célébrer ?" rows="3" aria-label="Nouvelle victoire" maxlength="300"></textarea>
+            <button id="addVictoryBtn">Ajouter au musée ✨</button> <!-- Style appliqué via CSS ou JS -->
         </div>
-        <div id="victoriesList">
-            <!-- La liste sera injectée ici -->
-        </div>
+        <div id="victoriesList"><p>Chargement...</p></div>
     `;
 
-    // Ajouter l'écouteur pour le bouton Ajouter
     const addBtn = containerElement.querySelector('#addVictoryBtn');
+    const inputEl = containerElement.querySelector('#newVictoryInput');
+
     if (addBtn) {
-         // Appliquer style spécifique "or" ici si on n'utilise pas de classe CSS dédiée
+        // Appliquer style spécifique "or"
         addBtn.style.backgroundColor = '#FFD700';
         addBtn.style.color = '#333';
-        // Ajouter listener
-        addBtn.addEventListener('click', addVictory);
-         // Permettre ajout avec Entrée (Shift+Enter pour saut ligne) dans textarea
-         const inputEl = containerElement.querySelector('#newVictoryInput');
-         if(inputEl) {
-              inputEl.addEventListener('keydown', (event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                       event.preventDefault(); // Empêche le saut de ligne
-                       addBtn.click(); // Déclenche l'ajout
-                  }
-              });
-         }
-
-    } else {
-         console.error("Bouton #addVictoryBtn introuvable.");
+        // Ajouter listener (wrapper async)
+        addBtn.addEventListener('click', async () => { await addVictory(); });
+    }
+    if(inputEl && addBtn) {
+         inputEl.addEventListener('keydown', async (event) => { // async pour addVictory
+              if (event.key === 'Enter' && !event.shiftKey && !addBtn.disabled) {
+                   event.preventDefault();
+                   await addVictory(); // Appel async
+              }
+         });
     }
 
-    // Afficher la liste initiale
-    displayVictoriesList();
+    // Afficher la liste initiale (async)
+    await displayVictoriesList();
 }
