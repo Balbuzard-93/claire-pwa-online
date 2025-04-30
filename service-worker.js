@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v11'; // <<<< VERSION INCRÉMENTÉE ICI
+const CACHE_NAME = 'claire-static-cache-v12'; // <<<< VERSION INCRÉMENTÉE ICI
 
 // Vérifier et maintenir cette liste à jour !
 const APP_SHELL_URLS = [
