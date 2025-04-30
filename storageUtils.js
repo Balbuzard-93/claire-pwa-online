@@ -1,59 +1,172 @@
-// badges.js
+// storageUtils.js  <-- THIS IS THE CORRECT CONTENT FOR THIS FILE
+
+// --- Constantes de Clés ---
+const SOBRIETY_START_DATE_KEY = 'claireAppSobrietyStartDate';
+const JOURNAL_ENTRIES_KEY = 'claireAppJournalEntries';
+const MOOD_ENTRIES_KEY = 'claireAppMoodEntries';
+const EARNED_BADGES_KEY = 'claireAppEarnedBadges';
+const DAILY_ROUTINE_KEY_PREFIX = 'claireAppDailyRoutine_';
+const DAILY_PLANNER_KEY_PREFIX = 'claireAppPlanner_';
+const VICTORIES_KEY = 'claireAppVictories';
+
+// --- Fonctions Utilitaires ---
 
 /**
- * Définitions des badges et des paliers de sobriété requis.
+ * Obtient la date du jour au format 'YYYY-MM-DD'.
+ * Utilise UTC pour éviter les problèmes de fuseau horaire lors de la comparaison des dates.
+ * @returns {string} La date actuelle en UTC.
  */
-export const badgeDefinitions = [
-    { id: 'badge_1_day', name: 'Premier Jour !', description: 'Vous avez tenu 1 jour. C\'est un début formidable !', requiredDays: 1, icon: '🌟' },
-    { id: 'badge_3_days', name: 'Trois Jours', description: 'Félicitations pour ces 3 jours de sobriété !', requiredDays: 3, icon: '🥉' },
-    { id: 'badge_1_week', name: 'Une Semaine', description: 'Incroyable ! Une semaine complète !', requiredDays: 7, icon: '🗓️' },
-    { id: 'badge_2_weeks', name: 'Deux Semaines', description: 'Deux semaines, un cap important franchi !', requiredDays: 14, icon: '✨' },
-    { id: 'badge_1_month', name: 'Un Mois', description: 'Bravo pour ce premier mois complet !', requiredDays: 30, icon: '🥈' },
-    { id: 'badge_3_months', name: 'Trois Mois', description: 'Un trimestre de sobriété, quelle réussite !', requiredDays: 90, icon: '🌿' },
-    { id: 'badge_6_months', name: 'Six Mois', description: 'Une demi-année ! Vous êtes incroyable !', requiredDays: 180, icon: '☀️' },
-    { id: 'badge_1_year', name: 'Un An', description: 'Joyeux anniversaire de sobriété ! Un an complet !', requiredDays: 365, icon: '🥇' },
-    // { id: 'badge_2_years', name: 'Deux Ans', description: 'Deux années de croissance et de force !', requiredDays: 730, icon: '🏆' },
-];
+export function getCurrentDateString() {
+    const date = new Date();
+    // Format YYYY-MM-DD en UTC
+    const year = date.getUTCFullYear();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// --- Fonctions Génériques loadData / saveData ---
 
 /**
- * Retourne les IDs de tous les badges mérités pour un nombre de jours donné.
- * @param {number} soberDays - Le nombre de jours de sobriété.
- * @returns {string[]} Un tableau des IDs des badges gagnés.
+ * Charge des données depuis localStorage en gérant les erreurs JSON.
+ * @param {string} key - La clé de stockage.
+ * @returns {any | null} Les données parsées ou null en cas d'erreur ou si non trouvé.
  */
-function getEarnedBadgeIds(soberDays) {
-    // Assurer que soberDays est un nombre valide
-    if (typeof soberDays !== 'number' || isNaN(soberDays) || soberDays < 0) {
-        return [];
+function loadData(key) {
+    try {
+        const storedData = localStorage.getItem(key);
+        if (storedData === null) return null;
+        // Gérer le cas où les données stockées ne sont pas du JSON valide
+        try {
+            return JSON.parse(storedData);
+        } catch (parseError) {
+            console.error(`Erreur de parsing JSON pour la clé ${key}:`, parseError, "\nDonnées récupérées:", storedData);
+            // Optionnel: Supprimer la donnée corrompue ?
+            // localStorage.removeItem(key);
+            return null;
+        }
+    } catch (error) {
+        console.error(`Erreur lors de la lecture de localStorage (${key}):`, error);
+        return null;
     }
-    return badgeDefinitions
-        .filter(badge => soberDays >= badge.requiredDays)
-        .map(badge => badge.id);
 }
 
 /**
- * Vérifie les badges gagnés par rapport à ceux déjà stockés et identifie les nouveaux.
- * @param {number} soberDays - Le nombre actuel de jours de sobriété.
- * @param {string[]} previouslyEarnedIds - Tableau des IDs de badges déjà enregistrés.
- * @returns {{newlyEarnedIds: string[], totalEarnedIds: string[]}} Un objet contenant les nouveaux badges et tous les badges gagnés.
+ * Sauvegarde des données dans localStorage en gérant les erreurs JSON et Quota.
+ * @param {string} key - La clé de stockage.
+ * @param {any} data - Les données à sauvegarder (seront stringifiées).
+ * @returns {boolean} true si la sauvegarde a réussi, false sinon.
  */
-export function checkAndStoreEarnedBadges(soberDays, previouslyEarnedIds) {
-    // S'assurer que previouslyEarnedIds est bien un tableau
-    const validPreviousIds = Array.isArray(previouslyEarnedIds) ? previouslyEarnedIds : [];
-
-    const currentlyEarnedIds = getEarnedBadgeIds(soberDays);
-    const newlyEarnedIds = currentlyEarnedIds.filter(id => !validPreviousIds.includes(id));
-
-    return {
-        newlyEarnedIds: newlyEarnedIds,
-        totalEarnedIds: currentlyEarnedIds // Retourne la liste complète calculée
-    };
+function saveData(key, data) {
+    try {
+        const stringifiedData = JSON.stringify(data);
+        localStorage.setItem(key, stringifiedData);
+        return true;
+    } catch (error) {
+        console.error(`Erreur sauvegarde localStorage (${key}):`, error);
+        // Vérification plus robuste des erreurs de quota
+        if (error.name === 'QuotaExceededError' ||
+            (error.code && (error.code === 22 || // Codes W3C
+                             error.code === 1014 || // Firefox
+                             error.code === DOMException.QUOTA_EXCEEDED_ERR))) { // Standard DOMException
+            alert(`Erreur : Espace de stockage local plein. Impossible de sauvegarder.`);
+        } else {
+            alert(`Une erreur est survenue lors de la sauvegarde.`);
+        }
+        return false;
+    }
 }
 
-/**
- * Récupère les détails complets d'un badge à partir de son ID.
- * @param {string} badgeId - L'ID du badge.
- * @returns {object | null} L'objet de définition du badge ou null si non trouvé.
- */
-export function getBadgeDetails(badgeId) {
-    return badgeDefinitions.find(badge => badge.id === badgeId) || null;
+// --- Fonctions Spécifiques ---
+// Ajout de vérifications simples pour les données récupérées
+
+// Sobriété
+export function getSobrietyStartDate() { // <<<=== L'EXPORT EST ICI
+    try {
+         return localStorage.getItem(SOBRIETY_START_DATE_KEY);
+    } catch (e) {
+        console.error("Err accès date sobriété:", e); return null;
+    }
+}
+export function saveSobrietyStartDate(dateString) { // <<<=== L'EXPORT EST ICI
+    if(typeof dateString !== 'string') return false;
+    try {
+        localStorage.setItem(SOBRIETY_START_DATE_KEY, dateString); return true;
+    } catch (e) {
+        console.error("Err sauvegarde date sobriété:", e);
+        if(e.name === 'QuotaExceededError' || (e.code && (e.code === 22 || e.code === 1014 || e.code === DOMException.QUOTA_EXCEEDED_ERR))) {
+            alert("Stockage plein.");
+        } else {
+            alert("Erreur sauvegarde date.");
+        }
+        return false;
+    }
+}
+
+// Journal
+export function getJournalEntries() {
+    const d = loadData(JOURNAL_ENTRIES_KEY);
+    return Array.isArray(d) ? d.filter(i => typeof i === 'object' && i && 'timestamp' in i && typeof i.text === 'string') : [];
+}
+export function saveJournalEntries(entries) {
+    return saveData(JOURNAL_ENTRIES_KEY, entries);
+}
+
+// Humeur
+export function getMoodEntries() {
+    const d = loadData(MOOD_ENTRIES_KEY);
+    return Array.isArray(d) ? d.filter(i => typeof i === 'object' && i && 'date' in i && typeof i.mood === 'number') : [];
+}
+export function saveMoodEntries(entries) {
+    return saveData(MOOD_ENTRIES_KEY, entries);
+}
+
+// Badges
+export function getEarnedBadgesFromStorage() {
+    const d = loadData(EARNED_BADGES_KEY);
+    return Array.isArray(d) ? d.filter(i => typeof i === 'string') : [];
+}
+export function saveEarnedBadgesToStorage(badgeIds) {
+    return saveData(EARNED_BADGES_KEY, badgeIds);
+}
+
+// Routine
+export function getRoutineForDate(dateString) {
+    const key = DAILY_ROUTINE_KEY_PREFIX + dateString;
+    const d = loadData(key);
+    return (d && typeof d === 'object' && Array.isArray(d.tasks)) ? d : null;
+}
+export function saveRoutineForDate(dateString, routineData) {
+    const key = DAILY_ROUTINE_KEY_PREFIX + dateString;
+    if (routineData === null) {
+        try { localStorage.removeItem(key); return true; }
+        catch (e) { console.error(`Err suppression ${key}:`, e); return false; }
+    } else {
+        return saveData(key, routineData);
+    }
+}
+
+// Planificateur
+export function getPlannerForDate(dateString) {
+    const key = DAILY_PLANNER_KEY_PREFIX + dateString;
+    const d = loadData(key);
+    return (d && typeof d === 'object' && Array.isArray(d.tasks)) ? d : null;
+}
+export function savePlannerForDate(dateString, plannerData) {
+    const key = DAILY_PLANNER_KEY_PREFIX + dateString;
+    if (plannerData === null) {
+        try { localStorage.removeItem(key); return true; }
+        catch (e) { console.error(`Err suppression ${key}:`, e); return false; }
+    } else {
+        return saveData(key, plannerData);
+    }
+}
+
+// Victoires
+export function getVictories() {
+    const d = loadData(VICTORIES_KEY);
+    return Array.isArray(d) ? d.filter(i => typeof i === 'object' && i && 'id' in i && 'timestamp' in i && typeof i.text === 'string') : [];
+}
+export function saveVictories(victoriesArray) {
+    return saveData(VICTORIES_KEY, victoriesArray);
 }
