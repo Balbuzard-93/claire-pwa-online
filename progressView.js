@@ -1,5 +1,5 @@
-// progressView.js
-import { getSobrietyStartDate, getAllMoodEntries, getEarnedBadgesFromStorage, saveEarnedBadgesToStorage } from './storageUtils.js';
+// progressView.js (Version avec import corrigé)
+import { getSobrietyStartDate, getAllMoodEntries, getEarnedBadgesFromStorage, saveEarnedBadgesToStorage } from './storageUtils.js'; // <<<=== IMPORT CORRIGÉ ICI
 import { calculateSoberDays } from './sobrietyTracker.js';
 import { checkAndStoreEarnedBadges, getBadgeDetails } from './badges.js';
 
@@ -16,19 +16,34 @@ function displaySobrietyProgress(container) {
     let message = "";
     if (startDate) {
         const daysSober = calculateSoberDays(startDate);
-        message = `Félicitations ! Vous êtes sobre depuis <strong>${daysSober}</strong> jour${daysSober !== 1 ? 's' : ''}. Continuez comme ça ! 💪`;
+        // Utiliser textContent et appendChild pour la sécurité
+        const p = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = daysSober;
+        p.appendChild(document.createTextNode('Félicitations ! Vous êtes sobre depuis '));
+        p.appendChild(strong);
+        p.appendChild(document.createTextNode(` jour${daysSober !== 1 ? 's' : ''}. Continuez comme ça ! 💪`));
+        container.innerHTML = ''; // Vider avant d'ajouter
+        container.appendChild(p);
     } else {
-        message = "Commencez votre suivi de sobriété pour voir votre progression ici.";
+        container.innerHTML = '<p>Commencez votre suivi de sobriété pour voir votre progression ici.</p>';
     }
-    container.innerHTML = `<p>${message}</p>`;
 }
 
 /**
  * Prépare les données des X derniers jours pour Chart.js.
  * @returns {object | null} Un objet { labels: [], datasets: [] } ou null si pas assez de données.
  */
-function prepareMoodChartData() {
-    const entries = getMoodEntries();
+async function prepareMoodChartData() { // Rendre async car utilise getAllMoodEntries
+    let entries = [];
+    try {
+         entries = await getAllMoodEntries(); // Utilise la fonction correcte exportée
+         if (!Array.isArray(entries)) entries = []; // Assurer que c'est un tableau
+    } catch(error) {
+         console.error("Erreur récupération getAllMoodEntries pour graphique:", error);
+         return null; // Pas de données si erreur
+    }
+
     if (entries.length === 0) {
         // console.log("prepareMoodChartData: Aucune entrée d'humeur.");
         return null;
@@ -40,7 +55,7 @@ function prepareMoodChartData() {
     const cutoffDateString = cutoffDate.toISOString().split('T')[0];
 
     const recentEntries = entries
-        .filter(entry => entry.date && entry.date >= cutoffDateString) // Filtrer dates valides et récentes
+        .filter(entry => entry && entry.date && entry.date >= cutoffDateString) // Filtrer dates valides et récentes
         .sort((a, b) => a.date.localeCompare(b.date)); // Tri chronologique (YYYY-MM-DD)
 
     if (recentEntries.length === 0) {
@@ -50,18 +65,13 @@ function prepareMoodChartData() {
 
     const labels = recentEntries.map(entry => {
         try {
-             // Convertir YYYY-MM-DD (UTC) en date locale pour affichage JJ/MM
              const [year, month, day] = entry.date.split('-').map(Number);
-             // Utiliser une méthode robuste pour éviter les erreurs de fuseau
              const dateObj = new Date(Date.UTC(year, month - 1, day));
              return dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-        } catch (e) {
-             console.warn("Erreur formatage date label graphique:", entry.date, e);
-             return '??/??';
-        }
+        } catch (e) { return '??/??'; }
     });
 
-    // S'assurer que les données sont bien des nombres
+    // S'assurer que les données sont bien des nombres ou null
     const moodData = recentEntries.map(entry => typeof entry.mood === 'number' ? entry.mood : null);
     const energyData = recentEntries.map(entry => typeof entry.energy === 'number' ? entry.energy : null);
     const anxietyData = recentEntries.map(entry => typeof entry.anxiety === 'number' ? entry.anxiety : null);
@@ -69,7 +79,7 @@ function prepareMoodChartData() {
     return {
         labels: labels,
         datasets: [
-            { label: 'Humeur (1-5)', data: moodData, borderColor: '#6A5ACD', backgroundColor: 'rgba(106, 90, 205, 0.1)', tension: 0.1, yAxisID: 'yMood', spanGaps: true }, // spanGaps pour relier points malgré null
+            { label: 'Humeur (1-5)', data: moodData, borderColor: '#6A5ACD', backgroundColor: 'rgba(106, 90, 205, 0.1)', tension: 0.1, yAxisID: 'yMood', spanGaps: true },
             { label: 'Énergie (1-3)', data: energyData, borderColor: '#FFA07A', backgroundColor: 'rgba(255, 160, 122, 0.1)', tension: 0.1, yAxisID: 'yEnergyAnxiety', spanGaps: true },
             { label: 'Anxiété (1-3)', data: anxietyData, borderColor: '#3CB371', backgroundColor: 'rgba(60, 179, 113, 0.1)', tension: 0.1, yAxisID: 'yEnergyAnxiety', spanGaps: true }
         ]
@@ -84,14 +94,9 @@ function renderOrUpdateMoodChart(chartData) {
     const chartContainer = document.getElementById('moodChartContainer');
     if (!chartContainer) { console.error("Conteneur de graphique introuvable."); return; }
 
-    // Gérer l'état sans données
+     // Gérer l'état sans données
      if (!chartData || !chartData.labels || chartData.labels.length === 0) {
-         if (moodChartInstance) {
-             moodChartInstance.destroy();
-             moodChartInstance = null;
-             // console.log("Graphique détruit (pas de données).");
-         }
-         // Afficher message et s'assurer qu'il n'y a pas de canvas
+         if (moodChartInstance) { moodChartInstance.destroy(); moodChartInstance = null; }
          chartContainer.innerHTML = "<p>Pas assez de données d'humeur récentes pour afficher le graphique.</p>";
          return;
      }
@@ -102,10 +107,7 @@ function renderOrUpdateMoodChart(chartData) {
           chartContainer.innerHTML = '<canvas id="moodChartCanvas"></canvas>';
           canvas = document.getElementById('moodChartCanvas');
           if (!canvas) { console.error("Impossible de créer/trouver le canvas."); return; }
-          if (moodChartInstance) { // Détruire l'ancienne instance si on recrée le canvas
-              moodChartInstance.destroy();
-              moodChartInstance = null;
-          }
+          if (moodChartInstance) { moodChartInstance.destroy(); moodChartInstance = null; }
       }
      const ctx = canvas.getContext('2d');
      if (!ctx) { console.error("Impossible d'obtenir le contexte 2D du canvas."); return; }
@@ -116,16 +118,8 @@ function renderOrUpdateMoodChart(chartData) {
         data: chartData,
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: `Tendances Humeur / Énergie / Anxiété (${CHART_DAYS} derniers jours)` },
-                legend: { position: 'top' },
-                tooltip: { mode: 'index', intersect: false }
-            },
-            scales: {
-                x: { display: true, title: { display: false, text: 'Date' } },
-                yMood: { type: 'linear', display: true, position: 'left', min: 0.5, max: 5.5, title: { display: true, text: 'Humeur (1-5)' } },
-                yEnergyAnxiety: { type: 'linear', display: true, position: 'right', min: 0.5, max: 3.5, title: { display: true, text: 'Énergie / Anx. (1-3)' }, grid: { drawOnChartArea: false } }
-            },
+            plugins: { title: { display: true, text: `Tendances Humeur / Énergie / Anxiété (${CHART_DAYS} derniers jours)` }, legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+            scales: { x: { display: true, title: { display: false, text: 'Date' } }, yMood: { type: 'linear', display: true, position: 'left', min: 0.5, max: 5.5, title: { display: true, text: 'Humeur (1-5)' } }, yEnergyAnxiety: { type: 'linear', display: true, position: 'right', min: 0.5, max: 3.5, title: { display: true, text: 'Énergie / Anx. (1-3)' }, grid: { drawOnChartArea: false } } },
             interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     };
@@ -134,10 +128,8 @@ function renderOrUpdateMoodChart(chartData) {
         moodChartInstance.data = config.data;
         moodChartInstance.options = config.options;
         moodChartInstance.update();
-        // console.log("Graphique mis à jour.");
     } else {
         moodChartInstance = new Chart(ctx, config);
-        // console.log("Graphique créé.");
     }
 }
 
@@ -157,7 +149,6 @@ function displayBadges() {
     const previouslyEarnedIds = getEarnedBadgesFromStorage();
     const { newlyEarnedIds, totalEarnedIds } = checkAndStoreEarnedBadges(soberDays, previouslyEarnedIds);
 
-    // Sauvegarder seulement si la liste a réellement changé
     const sortedTotal = [...totalEarnedIds].sort();
     const sortedPrevious = [...previouslyEarnedIds].sort();
     if (JSON.stringify(sortedTotal) !== JSON.stringify(sortedPrevious)) {
@@ -165,15 +156,14 @@ function displayBadges() {
         console.log("Nouvelle liste de badges sauvegardée :", totalEarnedIds);
     }
 
-    // --- Notification des nouveaux badges ---
+    // --- Notification des nouveaux badges (alerte simple) ---
     if (newlyEarnedIds.length > 0) {
-        // Utiliser une alerte simple comme fallback
-        setTimeout(() => {
-            newlyEarnedIds.forEach(newId => {
-                const details = getBadgeDetails(newId);
-                 if (details) alert(`✨ Nouveau badge débloqué ! ✨\n\n${details.icon} ${details.name}\n"${details.description}"`);
-            });
-        }, 500); // Léger délai pour ne pas bloquer l'UI immédiatement
+         setTimeout(() => {
+              newlyEarnedIds.forEach(newId => {
+                  const details = getBadgeDetails(newId);
+                   if (details) alert(`✨ Nouveau badge débloqué ! ✨\n\n${details.icon} ${details.name}\n"${details.description}"`);
+              });
+         }, 500);
     }
     // --- Fin Notification ---
 
@@ -193,32 +183,32 @@ function displayBadges() {
 }
 
 
-/** Fonction appelée pour rafraîchir TOUTES les données de cette vue. */
-export function refreshCharts() {
+/** Fonction appelée pour rafraîchir TOUTES les données de cette vue (devient async). */
+export async function refreshCharts() { // Rendre async à cause de prepareMoodChartData
     const sobrietyContainer = document.getElementById('sobrietyProgress');
     const chartContainer = document.getElementById('moodChartContainer');
-    const badgesContainer = document.getElementById('badgesDisplay'); // Le conteneur de la section badges
-
-    // Vérifier que tous les conteneurs nécessaires existent
-    if (!sobrietyContainer || !chartContainer || !badgesContainer) {
-        console.warn("Un ou plusieurs conteneurs de la vue Progrès sont manquants pour le rafraîchissement.");
-         return;
-     }
+    const badgesContainer = document.getElementById('badgesDisplay');
+    if (!sobrietyContainer || !chartContainer || !badgesContainer) { return; }
 
     displaySobrietyProgress(sobrietyContainer);
-    displayBadges(); // Gère l'affichage des badges dans #badgesList (contenu dans #badgesDisplay)
-    const moodData = prepareMoodChartData();
-    renderOrUpdateMoodChart(moodData); // Gère l'affichage du graphique ou du message dans #moodChartContainer
+    displayBadges();
+    try {
+         // Mettre dans un try/catch au cas où la préparation des données échoue
+         const moodData = await prepareMoodChartData(); // Attendre les données
+         renderOrUpdateMoodChart(moodData);
+    } catch(error) {
+         console.error("Erreur lors de la préparation/rendu du graphique d'humeur:", error);
+         renderOrUpdateMoodChart(null); // Afficher message d'erreur/pas de données
+    }
 }
 
-/** Initialise la vue Progrès. */
-export function initProgressView(containerElement) {
+/** Initialise la vue Progrès (devient async). */
+export async function initProgressView(containerElement) { // Rendre async
     if (!containerElement) { console.error("Conteneur vue Progrès introuvable."); return; }
-    // Assurer que la structure HTML de base est là
     containerElement.innerHTML = `
         <h2>Mes Progrès</h2>
         <div id="sobrietyProgress" class="progress-section"></div>
         <div id="badgesDisplay" class="progress-section"><h3>Mes Badges</h3><div id="badgesList"></div></div>
-        <div id="moodChartContainer" class="progress-section chart-container"></div>`;
-    refreshCharts(); // Lancer le premier rendu/calcul
+        <div id="moodChartContainer" class="progress-section chart-container"><p>Chargement du graphique...</p></div>`; // Message initial
+    await refreshCharts(); // Attendre le premier rendu/calcul
 }
