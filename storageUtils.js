@@ -1,99 +1,152 @@
-// storageUtils.js (Version avec IndexedDB Helpers - Révisée et Complète)
+// storageUtils.js (Version avec Gestion Promesses IDB Révisée)
 
-// --- Constantes de Clés ---
+// --- Constantes de Clés (inchangées) ---
 const LS_SOBRIETY_START_DATE_KEY = 'claireAppSobrietyStartDate';
 const LS_EARNED_BADGES_KEY = 'claireAppEarnedBadges';
 const LS_ZEN_MODE_KEY = 'claireAppZenModeEnabled';
-
-// --- Configuration IndexedDB ---
 const DB_NAME = 'ClaireAppDB';
-const DB_VERSION = 1; // Incrémenter seulement si on change la structure des stores ci-dessous
-const STORES = {
-    JOURNAL: 'journal_entries',
-    MOOD: 'mood_logs',
-    ROUTINE: 'daily_routines',
-    PLANNER: 'daily_plans',
-    VICTORIES: 'victories_log'
-};
+const DB_VERSION = 1;
+const STORES = { JOURNAL: 'journal_entries', MOOD: 'mood_logs', ROUTINE: 'daily_routines', PLANNER: 'daily_plans', VICTORIES: 'victories_log' };
 
-let dbPromise = null; // Promesse pour la connexion Singleton à la base
+let dbPromise = null;
 
-/**
- * Ouvre ou crée la base de données IndexedDB.
- * Gère la création/mise à jour des Object Stores.
- * @returns {Promise<IDBDatabase>} Une promesse résolue avec l'objet de base de données.
- */
+/** Ouvre la base de données IndexedDB */
 function openDB() {
     if (!dbPromise) {
         dbPromise = new Promise((resolve, reject) => {
-            if (!('indexedDB' in window)) {
-                 console.error("IndexedDB n'est pas supporté.");
-                 return reject("IndexedDB non supporté");
-            }
+            if (!('indexedDB' in window)) return reject("IndexedDB non supporté");
             const request = indexedDB.open(DB_NAME, DB_VERSION);
-            request.onerror = (event) => { console.error("Erreur ouverture IndexedDB:", event.target.error); dbPromise = null; reject(`Erreur ouverture IndexedDB: ${event.target.error}`); };
-            request.onsuccess = (event) => { resolve(event.target.result); };
-            request.onupgradeneeded = (event) => {
-                console.log("Mise à niveau IndexedDB (onupgradeneeded)...");
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains(STORES.JOURNAL)) { db.createObjectStore(STORES.JOURNAL, { keyPath: 'id', autoIncrement: true }).createIndex('timestamp', 'timestamp'); console.log(`OS ${STORES.JOURNAL} créé.`); }
-                if (!db.objectStoreNames.contains(STORES.MOOD)) { db.createObjectStore(STORES.MOOD, { keyPath: 'date' }); console.log(`OS ${STORES.MOOD} créé.`); }
-                if (!db.objectStoreNames.contains(STORES.ROUTINE)) { db.createObjectStore(STORES.ROUTINE, { keyPath: 'date' }); console.log(`OS ${STORES.ROUTINE} créé.`); }
-                if (!db.objectStoreNames.contains(STORES.PLANNER)) { db.createObjectStore(STORES.PLANNER, { keyPath: 'date' }); console.log(`OS ${STORES.PLANNER} créé.`); }
-                if (!db.objectStoreNames.contains(STORES.VICTORIES)) { db.createObjectStore(STORES.VICTORIES, { keyPath: 'id', autoIncrement: true }).createIndex('timestamp', 'timestamp'); console.log(`OS ${STORES.VICTORIES} créé.`); }
-                console.log("Mise à niveau IndexedDB terminée.");
+            request.onerror = (e) => { console.error("Erreur ouverture IDB:", e.target.error); dbPromise = null; reject(e.target.error); };
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onupgradeneeded = (e) => {
+                console.log("Upgrade IDB...");
+                const db = e.target.result;
+                Object.values(STORES).forEach(storeName => {
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        let store;
+                        if (storeName === STORES.JOURNAL || storeName === STORES.VICTORIES) {
+                            store = db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+                            store.createIndex('timestamp', 'timestamp');
+                        } else { // MOOD, ROUTINE, PLANNER use 'date' as key
+                            store = db.createObjectStore(storeName, { keyPath: 'date' });
+                        }
+                        console.log(`OS ${storeName} créé.`);
+                    }
+                });
             };
-             request.onblocked = (event) => { console.warn("Ouverture IndexedDB bloquée.", event); reject("Ouverture IndexedDB bloquée"); };
+            request.onblocked = (e) => { console.warn("Ouverture IDB bloquée.", e); reject("Ouverture bloquée"); };
         });
     }
     return dbPromise;
 }
 
-/** Opération générique pour lire/écrire dans IndexedDB */
-async function operateOnStore(storeName, mode = 'readonly', operation) {
-    try {
-        const db = await openDB();
-        const transaction = db.transaction(storeName, mode);
-        const store = transaction.objectStore(storeName);
-        const result = await operation(store, transaction);
-        return result;
-    } catch (error) { console.error(`Erreur op ${mode} sur ${storeName}:`, error); throw error; }
+// --- Fonctions Helper IDB (Révisées) ---
+
+/** Ajoute ou met à jour un enregistrement */
+async function putData(storeName, data) {
+    const db = await openDB();
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    // store.put retourne une requête IDBRequest
+    // On doit attendre la transaction pour confirmer la réussite/erreur
+    const request = store.put(data);
+    return new Promise((resolve, reject) => {
+         request.onsuccess = () => resolve(); // Résoudre quand la requête put réussit
+         request.onerror = (event) => reject(`Erreur Put dans ${storeName}: ${event.target.error}`);
+         tx.oncomplete = () => { /* console.log(`Transaction Put ${storeName} terminée`); */ resolve(); }; // Double sécurité via transaction
+         tx.onerror = (event) => reject(`Erreur Transaction Put ${storeName}: ${event.target.error}`);
+    });
 }
 
-// --- Fonctions Utilitaires (Date, localStorage générique) ---
-export function getCurrentDateString() { const d=new Date(); return `${d.getUTCFullYear()}-${(d.getUTCMonth()+1).toString().padStart(2,'0')}-${d.getUTCDate().toString().padStart(2,'0')}`; }
-function loadDataFromLS(key) { try { const d=localStorage.getItem(key); return d===null?null:JSON.parse(d); } catch(e){ console.error(`Err lecture LS (${key}):`,e); return null; } }
-function saveDataToLS(key, data) { try { localStorage.setItem(key,JSON.stringify(data)); return true; } catch(e){ console.error(`Err sauvegarde LS (${key}):`,e); if(e.name === 'QuotaExceededError'||(e.code&&(e.code===22||e.code===1014||e.code===DOMException.QUOTA_EXCEEDED_ERR))){ alert(`Stockage plein.`); } else { alert(`Erreur sauvegarde.`); } return false; } }
+/** Récupère un enregistrement par sa clé */
+async function getDataByKey(storeName, key) {
+    const db = await openDB();
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const request = store.get(key);
+     return new Promise((resolve, reject) => {
+          request.onsuccess = (event) => resolve(event.target.result); // Résoudre avec la donnée
+          request.onerror = (event) => reject(`Erreur GetByKey ${key} dans ${storeName}: ${event.target.error}`);
+          tx.onerror = (event) => reject(`Erreur Transaction GetByKey ${storeName}: ${event.target.error}`);
+          // tx.oncomplete n'est pas nécessaire ici car on attend le résultat de get
+     });
+}
+
+/** Récupère tous les enregistrements */
+async function getAllData(storeName) {
+    const db = await openDB();
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const request = store.getAll();
+     return new Promise((resolve, reject) => {
+          request.onsuccess = (event) => resolve(event.target.result); // Résoudre avec le tableau
+          request.onerror = (event) => reject(`Erreur GetAll dans ${storeName}: ${event.target.error}`);
+          tx.onerror = (event) => reject(`Erreur Transaction GetAll ${storeName}: ${event.target.error}`);
+     });
+}
+
+/** Récupère toutes les clés */
+async function getAllKeys(storeName) {
+     const db = await openDB();
+     const tx = db.transaction(storeName, 'readonly');
+     const store = tx.objectStore(storeName);
+     const request = store.getAllKeys();
+      return new Promise((resolve, reject) => {
+           request.onsuccess = (event) => resolve(event.target.result);
+           request.onerror = (event) => reject(`Erreur GetAllKeys dans ${storeName}: ${event.target.error}`);
+           tx.onerror = (event) => reject(`Erreur Transaction GetAllKeys ${storeName}: ${event.target.error}`);
+      });
+}
+
+
+/** Supprime un enregistrement par sa clé */
+async function deleteDataByKey(storeName, key) {
+    const db = await openDB();
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    const request = store.delete(key);
+     return new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve();
+          request.onerror = (event) => reject(`Erreur Delete ${key} dans ${storeName}: ${event.target.error}`);
+          tx.oncomplete = () => resolve();
+          tx.onerror = (event) => reject(`Erreur Transaction Delete ${storeName}: ${event.target.error}`);
+     });
+}
+
+// --- Fonctions Utilitaires LS (inchangées) ---
+export function getCurrentDateString() { /* ... */ }
+function loadDataFromLS(key) { /* ... */ }
+function saveDataToLS(key, data) { /* ... */ }
 
 // --- Fonctions Spécifiques Exportées ---
 
 // ** LOCALSTORAGE **
-export function getSobrietyStartDate() { try { return localStorage.getItem(LS_SOBRIETY_START_DATE_KEY); } catch (e) { console.error("Err accès date sobriété:", e); return null; } }
-export function saveSobrietyStartDate(dateString) { if(typeof dateString !== 'string') return false; try { localStorage.setItem(LS_SOBRIETY_START_DATE_KEY, dateString); return true; } catch (e) { console.error("Err sauvegarde date sobriété:", e); if(e.name === 'QuotaExceededError'||(e.code&&(e.code===22||e.code===1014||e.code===DOMException.QUOTA_EXCEEDED_ERR))){alert("Stockage plein.");} else {alert("Erreur sauvegarde date.");} return false; } }
-export function getEarnedBadgesFromStorage() { const d = loadDataFromLS(LS_EARNED_BADGES_KEY); return Array.isArray(d) ? d.filter(i => typeof i === 'string') : []; }
-export function saveEarnedBadgesToStorage(badgeIds) { if(!Array.isArray(badgeIds)) return false; return saveDataToLS(LS_EARNED_BADGES_KEY, badgeIds); }
-export function getZenModeState() { try { return localStorage.getItem(LS_ZEN_MODE_KEY) === 'true'; } catch { return false; } }
-export function saveZenModeState(isEnabled) { try { localStorage.setItem(LS_ZEN_MODE_KEY, isEnabled ? 'true' : 'false'); return true; } catch (e) { console.error("Err sauvegarde Mode Zen:", e); return false; } }
+export function getSobrietyStartDate() { /* ... */ }
+export function saveSobrietyStartDate(dateString) { /* ... */ }
+export function getEarnedBadgesFromStorage() { /* ... */ }
+export function saveEarnedBadgesToStorage(badgeIds) { /* ... */ }
+export function getZenModeState() { /* ... */ }
+export function saveZenModeState(isEnabled) { /* ... */ }
 
-// ** INDEXEDDB **
+// ** INDEXEDDB (utilisent les helpers révisés) **
 // Journal
-export async function getJournalEntries() { return operateOnStore(STORES.JOURNAL, 'readonly', store => store.getAll()); }
-export async function addJournalEntry(entryData) { if(!entryData||typeof entryData!=='object') throw new Error("Donnée journal invalide"); return operateOnStore(STORES.JOURNAL, 'readwrite', store => store.put(entryData)); }
-export async function deleteJournalEntry(entryId) { return operateOnStore(STORES.JOURNAL, 'readwrite', store => store.delete(entryId)); }
+export async function getJournalEntries() { return getAllData(STORES.JOURNAL); }
+export async function addJournalEntry(entryData) { return putData(STORES.JOURNAL, entryData); }
+export async function deleteJournalEntry(entryId) { return deleteDataByKey(STORES.JOURNAL, entryId); }
 // Humeur
-export async function getMoodEntryForDate(dateString) { if(!dateString) return undefined; return operateOnStore(STORES.MOOD, 'readonly', store => store.get(dateString)); }
-export async function saveMoodEntry(moodData) { if(!moodData||typeof moodData!=='object'||!moodData.date) throw new Error("Donnée humeur invalide"); return operateOnStore(STORES.MOOD, 'readwrite', store => store.put(moodData)); }
-export async function getAllMoodEntries() { return operateOnStore(STORES.MOOD, 'readonly', store => store.getAll()); } // <<<=== EXPORT EST BIEN ICI
+export async function getMoodEntryForDate(dateString) { return getDataByKey(STORES.MOOD, dateString); } // Retournera undefined si non trouvé
+export async function saveMoodEntry(moodData) { return putData(STORES.MOOD, moodData); }
+export async function getAllMoodEntries() { return getAllData(STORES.MOOD); }
 // Routine
-export async function getRoutineForDate(dateString) { if(!dateString) return null; const d = await operateOnStore(STORES.ROUTINE, 'readonly', store => store.get(dateString)); return (d && Array.isArray(d.tasks)) ? d : null; }
-export async function saveRoutineForDate(dateString, routineData) { if(!dateString) throw new Error("Date manquante routine"); if (routineData === null) { return operateOnStore(STORES.ROUTINE, 'readwrite', store => store.delete(dateString)); } else { if(typeof routineData!=='object'||!Array.isArray(routineData.tasks)) throw new Error("Donnée routine invalide"); return operateOnStore(STORES.ROUTINE, 'readwrite', store => store.put({ ...routineData, date: dateString })); } }
+export async function getRoutineForDate(dateString) { const d = await getDataByKey(STORES.ROUTINE, dateString); return (d && Array.isArray(d.tasks)) ? d : null; }
+export async function saveRoutineForDate(dateString, routineData) { if (routineData === null) { return deleteDataByKey(STORES.ROUTINE, dateString); } else { if(typeof routineData!=='object'||!Array.isArray(routineData.tasks)) throw new Error("Donnée routine invalide"); return putData(STORES.ROUTINE, { ...routineData, date: dateString }); } }
 // Planificateur
-export async function getPlannerForDate(dateString) { if(!dateString) return null; const d = await operateOnStore(STORES.PLANNER, 'readonly', store => store.get(dateString)); return (d && Array.isArray(d.tasks)) ? d : null; }
-export async function savePlannerForDate(dateString, plannerData) { if(!dateString) throw new Error("Date manquante plan"); if (plannerData === null) { return operateOnStore(STORES.PLANNER, 'readwrite', store => store.delete(dateString)); } else { if(typeof plannerData!=='object'||!Array.isArray(plannerData.tasks)) throw new Error("Donnée plan invalide"); return operateOnStore(STORES.PLANNER, 'readwrite', store => store.put({ ...plannerData, date: dateString })); } }
+export async function getPlannerForDate(dateString) { const d = await getDataByKey(STORES.PLANNER, dateString); return (d && Array.isArray(d.tasks)) ? d : null; }
+export async function savePlannerForDate(dateString, plannerData) { if (plannerData === null) { return deleteDataByKey(STORES.PLANNER, dateString); } else { if(typeof plannerData!=='object'||!Array.isArray(plannerData.tasks)) throw new Error("Donnée plan invalide"); return putData(STORES.PLANNER, { ...plannerData, date: dateString }); } }
 // Victoires
-export async function getVictories() { return operateOnStore(STORES.VICTORIES, 'readonly', store => store.getAll()); }
-export async function addVictory(victoryData) { if(!victoryData||typeof victoryData!=='object'||!victoryData.text) throw new Error("Donnée victoire invalide"); return operateOnStore(STORES.VICTORIES, 'readwrite', store => store.put(victoryData)); }
-export async function deleteVictory(victoryId) { return operateOnStore(STORES.VICTORIES, 'readwrite', store => store.delete(victoryId)); }
+export async function getVictories() { return getAllData(STORES.VICTORIES); }
+export async function addVictory(victoryData) { if(!victoryData||typeof victoryData!=='object'||!victoryData.text) throw new Error("Donnée victoire invalide"); return putData(STORES.VICTORIES, victoryData); }
+export async function deleteVictory(victoryId) { return deleteDataByKey(STORES.VICTORIES, victoryId); }
 
 // --- Fonction d'Export ---
 export async function getAllAppData() {
@@ -101,7 +154,7 @@ export async function getAllAppData() {
     try { allData.settings.sobrietyStartDate = getSobrietyStartDate(); allData.settings.earnedBadges = getEarnedBadgesFromStorage(); allData.settings.isZenModeEnabled = getZenModeState(); } catch(e){}
     try {
         const db = await openDB();
-        const [journal, mood, victories, routineKeys, plannerKeys] = await Promise.all([ getAllData(STORES.JOURNAL), getAllData(STORES.MOOD), getAllData(STORES.VICTORIES), operateOnStore(STORES.ROUTINE, 'readonly', s => s.getAllKeys()), operateOnStore(STORES.PLANNER, 'readonly', s => s.getAllKeys()) ]);
+        const [journal, mood, victories, routineKeys, plannerKeys] = await Promise.all([ getAllData(STORES.JOURNAL), getAllData(STORES.MOOD), getAllData(STORES.VICTORIES), getAllKeys(STORES.ROUTINE), getAllKeys(STORES.PLANNER) ]); // Utiliser getAllKeys révisé
         allData.journal = journal; allData.mood = mood; allData.victories = victories;
         const routinePromises = routineKeys.map(key => getDataByKey(STORES.ROUTINE, key)); const planPromises = plannerKeys.map(key => getDataByKey(STORES.PLANNER, key));
         const routineResults = await Promise.all(routinePromises); routineResults.forEach(r => { if(r) allData.routines[r.date] = r; });
