@@ -29,7 +29,7 @@ function registerServiceWorker() {
                 serviceWorkerRegistration = registration; // Stocker la registration
                 console.log('Service Worker enregistré ! Scope:', registration.scope);
 
-                // Logique pour gérer les mises à jour
+                // Gérer les mises à jour trouvées
                 registration.addEventListener('updatefound', () => {
                     console.log("Nouvelle version du SW trouvée, installation...");
                     const newWorker = registration.installing;
@@ -37,7 +37,6 @@ function registerServiceWorker() {
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed') {
                                 if (navigator.serviceWorker.controller) {
-                                    // Si un ancien SW contrôle la page, le nouveau est en attente
                                     console.log('Nouveau contenu disponible. Prochain rechargement ou M-A-J manuelle.');
                                     showUpdateButton(registration); // Afficher bouton MAJ
                                 } else {
@@ -47,12 +46,19 @@ function registerServiceWorker() {
                         });
                     }
                 });
+
+                // Vérifier s'il y a déjà un worker en attente lors du chargement
+                if (registration.waiting) {
+                    console.log("Un nouveau Service Worker est en attente (déjà installé).");
+                    showUpdateButton(registration);
+                }
+
             })
             .catch(error => {
                 console.error('Échec enregistrement SW:', error);
             });
 
-        // Écouter les changements de contrôleur pour recharger
+        // Écouter les changements de contrôleur pour recharger automatiquement
         let refreshing;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (refreshing) return;
@@ -68,12 +74,11 @@ function registerServiceWorker() {
 
 // Fonction pour afficher un bouton de mise à jour SW
 function showUpdateButton(registration) {
-    // Supprimer ancien bouton s'il existe
-    const oldButton = document.getElementById('sw-update-button');
-    if (oldButton) oldButton.remove();
+    const existingButton = document.getElementById('sw-update-button');
+    if (existingButton) return; // Ne pas ajouter plusieurs fois
 
     const updateButton = document.createElement('button');
-    updateButton.id = 'sw-update-button'; // ID pour référence future
+    updateButton.id = 'sw-update-button';
     updateButton.textContent = 'Mise à jour disponible ! Recharger';
     updateButton.className = 'update-available-button'; // Pour le style CSS
 
@@ -81,11 +86,9 @@ function showUpdateButton(registration) {
         if (registration.waiting) {
             updateButton.disabled = true;
             updateButton.textContent = 'Mise à jour...';
-            // Envoyer message au SW en attente pour qu'il s'active
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-            // Le listener 'controllerchange' devrait ensuite faire le reload
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' }); // Dire au SW de s'activer
         } else {
-            // Sécurité : simple reload si pas de worker en attente trouvé
+             // Fallback simple
              window.location.reload();
         }
     });
@@ -107,34 +110,32 @@ function showView(viewId) {
         else if (viewId === 'plannerView') refreshPlannerView();
     }
 
-    // *** CORRECTION ICI ***
-    // Extraire le nom de base (ex: 'journal' depuis 'journalView')
+    // Activer le bouton de navigation correspondant (Correction de la logique ID)
     const baseName = viewId.replace('View', '');
-    // Construire l'ID du bouton correctement (ex: showJournalBtn)
     const buttonId = `show${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Btn`;
-    // *** FIN CORRECTION ***
-
     const buttonToActivate = document.getElementById(buttonId);
     if (buttonToActivate) {
         buttonToActivate.classList.add('active');
     } else {
-        // Ce warning devrait disparaître après la correction
-        console.warn(`Bouton de navigation introuvable pour l'ID: ${buttonId} (construit depuis viewId: ${viewId})`);
+        // Log l'erreur SEULEMENT si ce n'est pas le bouton Zen lui-même (qui n'a pas de vue associée)
+        if (viewId !== 'toggleZenModeView') { // Utiliser une convention ou vérifier si l'ID existe
+            console.warn(`Bouton de navigation introuvable pour l'ID: ${buttonId} (construit depuis viewId: ${viewId})`);
+        }
     }
 
     window.scrollTo(0, 0); // Scroll vers le haut
 }
-}
 
 // --- Initialisation des modules de l'application ---
+// Cette fonction est appelée une fois que le DOM est prêt
 function initializeApp() {
     console.log("DOM Chargé. Initialisation de l'application Clair·e...");
 
-    // Initialisation du Mode Zen (dès que possible)
+    // Initialisation du Mode Zen
     zenModeButton = document.getElementById('toggleZenModeBtn');
     if (zenModeButton) {
         const initialZenState = isZenModeEnabled();
-        setZenMode(initialZenState);
+        setZenMode(initialZenState); // Applique l'état et met à jour le bouton
         zenModeButton.addEventListener('click', toggleZenMode);
     } else {
         console.warn("Bouton 'toggleZenModeBtn' introuvable.");
@@ -157,9 +158,15 @@ function initializeApp() {
     views.forEach(view => {
         const container = document.getElementById(view.id);
         if (container && typeof view.initFn === 'function') {
-            try { view.initFn(container); }
-            catch (error) { console.error(`Erreur init vue ${view.id}:`, error); }
-        } else if (!container) { console.error(`Conteneur '${view.id}' introuvable.`); }
+            try {
+                view.initFn(container);
+                // console.log(`Vue ${view.id} initialisée.`); // Optionnel : log de succès
+            } catch (error) {
+                 console.error(`Erreur init vue ${view.id}:`, error);
+            }
+        } else if (!container) {
+            console.error(`Conteneur '${view.id}' introuvable.`);
+        }
     });
 
     // Écouteurs de navigation
@@ -170,14 +177,24 @@ function initializeApp() {
     navButtons.forEach(viewName => {
         const buttonId = `show${viewName}Btn`;
         const button = document.getElementById(buttonId);
+        // Construit l'ID de la vue à afficher (ex: 'journalView')
         const viewId = `${viewName.charAt(0).toLowerCase() + viewName.slice(1)}View`;
-        if (button) { button.addEventListener('click', () => showView(viewId)); }
-        else { console.warn(`Bouton '${buttonId}' introuvable.`); }
+        if (button) {
+            button.addEventListener('click', () => showView(viewId));
+        } else {
+            // Ne pas afficher de warning pour le bouton Zen car il n'a pas de 'show...' ID standard
+            if (buttonId !== 'showToggleZenModeBtn') {
+                 console.warn(`Bouton de navigation '${buttonId}' introuvable.`);
+            }
+        }
     });
+
+    // S'assurer que la vue initiale est bien affichée (normalement géré par la classe 'active' dans HTML)
+    // showView('sobrietyView'); // Décommenter si besoin de forcer
 }
 
 // --- Lancement ---
-// Utiliser DOMContentLoaded pour initialiser l'app dès que le HTML est prêt
+// Initialiser l'app quand le DOM est prêt
 document.addEventListener('DOMContentLoaded', initializeApp);
-// Utiliser window.load pour enregistrer le SW après que tout (images, etc.) est chargé
+// Enregistrer le SW quand la page est complètement chargée
 window.addEventListener('load', registerServiceWorker);
