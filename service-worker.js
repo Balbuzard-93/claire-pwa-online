@@ -1,18 +1,18 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v12'; // <<<< VERSION INCRÉMENTÉE ICI
+const CACHE_NAME = 'claire-static-cache-v13'; // <<<< VERSION INCRÉMENTÉE
 
-// Vérifier et maintenir cette liste à jour !
+// Vérifier que cette liste correspond EXACTEMENT aux fichiers du dépôt
 const APP_SHELL_URLS = [
     '/',
     '/index.html',
     '/style.css',
     '/app.js',
-    '/storageUtils.js',
+    '/storageUtils.js',       // Corrigé potentiellement
     '/sobrietyTracker.js',
     '/journal.js',
     '/moodTracker.js',
-    '/progressView.js',
+    '/progressView.js',       // Corrigé potentiellement
     '/badges.js',
     '/sosView.js',
     '/exercisesView.js',
@@ -20,8 +20,8 @@ const APP_SHELL_URLS = [
     '/plannerView.js',
     '/victoriesView.js',
     '/testimonialsView.js',
-    '/settingsView.js',      // *** AJOUTÉ PRÉCÉDEMMENT ***
-    '/cravingsView.js',      // *** AJOUTÉ MAINTENANT ***
+    '/settingsView.js',
+    '/cravingsView.js',
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png'
@@ -35,28 +35,20 @@ self.addEventListener('install', event => {
       try {
         const cache = await caches.open(CACHE_NAME);
         console.log('Service Worker: Mise en cache de l\'App Shell...');
-        // Utiliser { cache: 'reload' } pour éviter le cache HTTP navigateur
         const requests = APP_SHELL_URLS.map(url => new Request(url, { cache: 'reload' }));
         await cache.addAll(requests);
         console.log('Service Worker: App Shell mis en cache avec succès.');
       } catch (error) {
         console.error('Service Worker: Échec de la mise en cache addAll:', error);
-        // Log détaillé pour aider au debug si ça échoue encore
-         console.error('Tentative de mise en cache des URLs:', APP_SHELL_URLS);
-         // Essayer de mettre en cache un par un pour voir lequel échoue
-         try {
-              const cache = await caches.open(CACHE_NAME + '-debug'); // Cache temporaire pour debug
+        // Log pour aider au debug si ça échoue encore
+        console.error('URLs tentées:', APP_SHELL_URLS);
+         try { // Tentative de cache individuel pour debug
+              const debugCache = await caches.open(CACHE_NAME + '-debug-failed');
               for (const url of APP_SHELL_URLS) {
-                   try {
-                        await cache.add(new Request(url, { cache: 'reload' }));
-                        console.log(`SW Debug Cache: ${url} OK`);
-                   } catch (addError) {
-                        console.error(`SW Debug Cache: ÉCHEC pour ${url}`, addError);
-                   }
+                   try { await debugCache.add(new Request(url, { cache: 'reload' })); }
+                   catch (addError) { console.error(`SW Debug Cache: ÉCHEC pour ${url}`, addError); }
               }
-         } catch (debugCacheError) {
-              console.error("Erreur ouverture cache debug", debugCacheError);
-         }
+         } catch (debugCacheError) {}
       }
     })()
   );
@@ -70,19 +62,18 @@ self.addEventListener('activate', event => {
       try {
         const cacheNames = await caches.keys();
         const deletePromises = cacheNames.map(cacheName => {
-          // Supprimer les caches commençant par 'claire-static-cache-' (y compris -debug) mais différents du actuel
-          if ((cacheName.startsWith('claire-static-cache-') || cacheName.endsWith('-debug')) && cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Suppression de l\'ancien cache:', cacheName);
+          if ((cacheName.startsWith('claire-static-cache-') || cacheName.endsWith('-debug-failed')) && cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Suppression ancien cache:', cacheName);
             return caches.delete(cacheName);
           }
           return Promise.resolve();
         });
         await Promise.all(deletePromises);
         console.log('Service Worker: Anciens caches nettoyés.');
-        await self.clients.claim(); // Prendre le contrôle
-        console.log('Service Worker: Contrôle immédiat des clients revendiqué.');
+        await self.clients.claim();
+        console.log('Service Worker: Contrôle clients revendiqué.');
       } catch (error) {
-        console.error('Service Worker: Échec du nettoyage des anciens caches:', error);
+        console.error('Service Worker: Échec nettoyage anciens caches:', error);
       }
     })()
   );
@@ -90,41 +81,49 @@ self.addEventListener('activate', event => {
 
 // --- Événement FETCH ---
 self.addEventListener('fetch', event => {
-    const requestUrl = new URL(event.request.url);
-    if (event.request.method !== 'GET' || !requestUrl.protocol.startsWith('http')) { return; }
+    const { request } = event;
+    const url = new URL(request.url);
 
-    // Stratégie Cache First, puis Network, avec màj cache en arrière-plan
-    if (APP_SHELL_URLS.includes(requestUrl.pathname) || event.request.mode === 'navigate') {
+    // Ignorer requêtes non-GET ou non-HTTP(S)
+     if (request.method !== 'GET' || !url.protocol.startsWith('http')) { return; }
+
+    // Stratégie Cache First, puis Network, avec mise à jour cache en arrière-plan (Stale-While-Revalidate 'lite')
+    // pour les ressources de l'App Shell et la navigation.
+    if (APP_SHELL_URLS.includes(url.pathname) || request.mode === 'navigate') {
         event.respondWith(
             (async () => {
                 const cache = await caches.open(CACHE_NAME);
-                const cachedResponse = await cache.match(event.request);
+                const cachedResponse = await cache.match(request);
 
-                const networkFetchPromise = fetch(event.request).then(networkResponse => {
+                // Tenter de rafraîchir depuis le réseau en arrière-plan
+                const networkFetchPromise = fetch(request).then(networkResponse => {
                      if (networkResponse.ok) {
-                         cache.put(event.request, networkResponse.clone());
+                         cache.put(request, networkResponse.clone()); // Mettre à jour le cache
                      }
-                     return networkResponse;
+                     return networkResponse; // Toujours retourner la réponse réseau
                  }).catch(error => {
-                      console.warn('SW: Fetch réseau échoué (arrière-plan):', event.request.url, error);
+                      console.warn('SW: Fetch réseau échoué (arrière-plan):', request.url, error);
                       return null;
                  });
 
-                if (cachedResponse) { return cachedResponse; } // Servi depuis cache
-                const networkResponse = await networkFetchPromise; // Attendre réseau si pas en cache
+                // Si trouvé en cache, servir immédiatement
+                if (cachedResponse) { return cachedResponse; }
+
+                // Sinon, attendre la réponse réseau
+                const networkResponse = await networkFetchPromise;
                 if (networkResponse) { return networkResponse; }
 
-                // Fallback si tout échoue
-                console.error('SW: Échec Cache & Réseau:', event.request.url);
-                 if (event.request.mode === 'navigate') {
+                // Fallback ultime si tout échoue
+                console.error('SW: Échec Cache & Réseau:', request.url);
+                 if (request.mode === 'navigate') {
                     const fallbackResponse = await cache.match('/');
-                    if (fallbackResponse) return fallbackResponse;
+                    if (fallbackResponse) { return fallbackResponse; }
                  }
-                return new Response("Contenu indisponible hors ligne.", { status: 503, headers: { 'Content-Type': 'text/plain' }});
+                 return new Response("Contenu indisponible hors ligne.", { status: 503, headers: { 'Content-Type': 'text/plain' }});
             })()
         );
     }
-    // Autres requêtes (CDN, etc.) laissées au navigateur
+    // Laisser les autres requêtes (CDN, etc.) passer
 });
 
 // --- Événement MESSAGE ---
