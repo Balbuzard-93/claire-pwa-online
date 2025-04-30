@@ -1,5 +1,5 @@
 // progressView.js
-import { getSobrietyStartDate, getMoodEntries, getEarnedBadgesFromStorage, saveEarnedBadgesToStorage } from './storageUtils.js';
+import { getSobrietyStartDate, getAllMoodEntries, getEarnedBadgesFromStorage, saveEarnedBadgesToStorage } from './storageUtils.js';
 import { calculateSoberDays } from './sobrietyTracker.js';
 import { checkAndStoreEarnedBadges, getBadgeDetails } from './badges.js';
 
