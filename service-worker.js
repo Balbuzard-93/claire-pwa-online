@@ -1,8 +1,8 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v22'; // <<<< VERSION INCRÉMENTÉE
+const CACHE_NAME = 'claire-static-cache-v24'; // <<<< VERSION SUIVANTE
 
-// Liste à jour incluant tous les fichiers JS connus
+// Liste à jour
 const APP_SHELL_URLS = [
     '/',
     '/index.html',
@@ -11,12 +11,12 @@ const APP_SHELL_URLS = [
     '/storageUtils.js',
     '/sobrietyTracker.js',
     '/journal.js',
-    '/moodTracker.js',
+    '/moodTracker.js',       // Modifié
     '/progressView.js',
     '/badges.js',
     '/sosView.js',
     '/exercisesView.js',
-    '/routineView.js',
+    '/routineView.js',       // Modifié
     '/plannerView.js',       // Modifié
     '/victoriesView.js',
     '/testimonialsView.js',
@@ -26,6 +26,11 @@ const APP_SHELL_URLS = [
     '/icons/icon-192.png',
     '/icons/icon-512.png'
 ];
+
+// --- Le reste du code (install, activate, fetch, message) ---
+// Copiez/collez le reste du code de service-worker.js fourni dans
+// la réponse précédente (celle où on est passé à v23), il n'a
+// pas besoin de changer logiquement, seule la liste et la version importent.
 
 // --- Événement INSTALL ---
 self.addEventListener('install', event => {
@@ -39,15 +44,9 @@ self.addEventListener('install', event => {
         await cache.addAll(requests);
         console.log('Service Worker: App Shell mis en cache avec succès.');
       } catch (error) {
-        console.error('Service Worker: Échec de la mise en cache addAll:', error);
+        console.error('Service Worker: Échec cache addAll:', error);
         console.error('URLs tentées:', APP_SHELL_URLS);
-         try {
-              const debugCache = await caches.open(CACHE_NAME + '-debug-failed');
-              for (const url of APP_SHELL_URLS) {
-                   try { await debugCache.add(new Request(url, { cache: 'reload' })); }
-                   catch (addError) { console.error(`SW Debug Cache: ÉCHEC pour ${url}`, addError); }
-              }
-         } catch (debugCacheError) {}
+         try { const dC=await caches.open(CACHE_NAME+'-debug'); for(const u of APP_SHELL_URLS){try{await dC.add(new Request(u,{cache:'reload'}));}catch(aE){console.error(`SW Debug: ÉCHEC ${u}`,aE);}} } catch(e){}
       }
     })()
   );
@@ -59,55 +58,25 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     (async () => {
       try {
-        const cacheNames = await caches.keys();
-        const deletePromises = cacheNames.map(cacheName => {
-          if ((cacheName.startsWith('claire-static-cache-') || cacheName.endsWith('-debug-failed')) && cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Suppression ancien cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-          return Promise.resolve();
-        });
-        await Promise.all(deletePromises);
+        const cN = await caches.keys();
+        const dP = cN.map(cN => { if((cN.startsWith('claire-static-cache-')||cN.endsWith('-debug-failed')) && cN !== CACHE_NAME) { console.log('SW: Suppression ancien cache:', cN); return caches.delete(cN); } return Promise.resolve(); });
+        await Promise.all(dP);
         console.log('Service Worker: Anciens caches nettoyés.');
         await self.clients.claim();
         console.log('Service Worker: Contrôle clients revendiqué.');
-      } catch (error) {
-        console.error('Service Worker: Échec nettoyage anciens caches:', error);
-      }
+      } catch (error) { console.error('SW: Échec nettoyage caches:', error); }
     })()
   );
 });
 
 // --- Événement FETCH ---
 self.addEventListener('fetch', event => {
-    const { request } = event;
-    const url = new URL(request.url);
+    const { request } = event; const url = new URL(request.url);
     if (request.method !== 'GET' || !url.protocol.startsWith('http')) { return; }
-
-    // Stratégie Cache First, puis Network, avec màj cache en arrière-plan
     if (APP_SHELL_URLS.includes(url.pathname) || request.mode === 'navigate') {
-        event.respondWith(
-            (async () => {
-                try {
-                    const cache = await caches.open(CACHE_NAME);
-                    const cachedResponse = await cache.match(request);
-                    const networkFetchPromise = fetch(request).then(networkResponse => { if (networkResponse.ok) { cache.put(request, networkResponse.clone()); } return networkResponse; }).catch(error => { console.warn('SW: Fetch réseau (arrière-plan) échoué:', request.url, error); return null; });
-                    if (cachedResponse) { return cachedResponse; }
-                    const networkResponse = await networkFetchPromise;
-                    if (networkResponse) { return networkResponse; }
-                    console.error('SW: Échec Cache & Réseau:', request.url);
-                     if (request.mode === 'navigate') { const fallback = await cache.match('/'); if (fallback) return fallback; }
-                    return new Response("Contenu indisponible hors ligne.", { status: 503, headers: { 'Content-Type': 'text/plain' }});
-                } catch (error) { console.error('SW: Erreur fetch:', error); return new Response("Erreur interne.", { status: 500 }); }
-            })()
-        );
+        event.respondWith( (async () => { try { const c = await caches.open(CACHE_NAME); const cR = await c.match(request); const nFP = fetch(request).then(nR => { if(nR.ok){c.put(request, nR.clone());} return nR; }).catch(e => {console.warn('SW: Fetch BKG échoué:',request.url,e); return null;}); if(cR){return cR;} const nR = await nFP; if(nR){return nR;} console.error('SW: Échec Cache&Net:', request.url); if(request.mode==='navigate'){const fR=await c.match('/'); if(fR)return fR;} return new Response("Hors ligne.",{status:503,headers:{'Content-Type':'text/plain'}});} catch (e) { console.error('SW: Err fetch:',e); return new Response("Erreur.",{status:500});}})());
     }
 });
 
 // --- Événement MESSAGE ---
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('Service Worker: Ordre Skip waiting reçu.');
-    self.skipWaiting();
-  }
-});
+self.addEventListener('message', event => { if (event.data?.type === 'SKIP_WAITING') { console.log('SW: Skip waiting reçu.'); self.skipWaiting(); }});
