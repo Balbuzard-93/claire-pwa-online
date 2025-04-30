@@ -9,6 +9,7 @@ import { initRoutineView, refreshRoutineView } from './routineView.js';
 import { initPlannerView, refreshPlannerView } from './plannerView.js';
 import { initVictoriesView } from './victoriesView.js';
 import { initTestimonialsView } from './testimonialsView.js';
+import { initSettingsView } from './settingsView.js';
 
 // --- Constantes et Variables Globales ---
 const ZEN_MODE_KEY = 'claireAppZenModeEnabled';
