@@ -1,4 +1,4 @@
-// sosView.js
+// sosView.js (Version avec Décompte Respiration)
 
 const comfortingPhrases = [
     "C'est ok de ne pas être ok.", "Vous êtes plus fort(e) que vous ne le pensez.", "Respirez profondément, ce moment difficile passera.",
@@ -8,97 +8,191 @@ const comfortingPhrases = [
     "Vous faites de votre mieux, et c'est suffisant.", "Accueillez vos émotions sans jugement.", "Le calme reviendra."
 ];
 
-// Utiliser les durées pour l'animation CSS et le JS
-const BREATHING_CYCLE = { inhale: 4, hold: 4, exhale: 6, loops: 5 }; // Durées en secondes
-let breathingTimeoutId = null;
+// Config Respiration (en secondes)
+const BREATHING_CONFIG = {
+    inhale: 4,
+    hold: 4,
+    exhale: 6,
+    pause: 1, // Pause entre les cycles
+    loops: 5
+};
+
+let breathingIntervalId = null; // ID pour setInterval
 let currentBreathLoop = 0;
+let currentPhase = 'idle'; // 'idle', 'inhale', 'hold', 'exhale', 'pause'
+let phaseTimer = 0; // Compteur pour la phase actuelle
 
-/** Arrête l'exercice de respiration. */
-function stopBreathingExercise(btn, instructionEl, visualizerEl) {
-    if (breathingTimeoutId) { clearTimeout(breathingTimeoutId); breathingTimeoutId = null; }
-    if(visualizerEl) {
-        visualizerEl.className = 'breathing-visualizer'; // Reset classe animation
-        visualizerEl.style.animationDuration = ''; // Nettoyer durée animation
-        visualizerEl.style.animationName = 'none'; // Stopper animation en cours
+// Références aux éléments DOM (pour éviter requêtes répétées)
+let breathBtn = null;
+let breathInstructionEl = null;
+let breathVisualizerEl = null;
+let breathCounterEl = null; // Nouvel élément pour le compteur
+
+/** Arrête l'exercice de respiration */
+function stopBreathingExercise() {
+    if (breathingIntervalId) {
+        clearInterval(breathingIntervalId);
+        breathingIntervalId = null;
     }
-    if(instructionEl) instructionEl.textContent = `Cliquez pour ${BREATHING_CYCLE.loops} cycles de respiration.`; // Message initial
-    if(btn) { btn.textContent = 'Commencer'; btn.disabled = false; }
+    if (breathVisualizerEl) breathVisualizerEl.className = 'breathing-visualizer'; // Reset animation
+    if (breathInstructionEl) breathInstructionEl.textContent = `Cliquez pour ${BREATHING_CONFIG.loops} cycles.`;
+    if (breathCounterEl) breathCounterEl.textContent = ''; // Effacer compteur
+    if (breathBtn) { breathBtn.textContent = 'Commencer'; breathBtn.disabled = false; }
     currentBreathLoop = 0;
+    currentPhase = 'idle';
+    phaseTimer = 0;
+    // console.log("Respiration arrêtée.");
 }
 
-/** Démarre un cycle de respiration. */
-function startBreathingCycle(btn, instructionEl, visualizerEl) {
-    if (!visualizerEl || !instructionEl || !btn) { stopBreathingExercise(btn, instructionEl, visualizerEl); return; }
-
-    if (currentBreathLoop >= BREATHING_CYCLE.loops) { stopBreathingExercise(btn, instructionEl, visualizerEl); return; }
-    currentBreathLoop++;
-
-    instructionEl.textContent = `Inspirez (${BREATHING_CYCLE.inhale}s)...`;
-    visualizerEl.style.animationDuration = `${BREATHING_CYCLE.inhale}s`;
-    visualizerEl.className = 'breathing-visualizer breathing-inhale'; // Déclenche anim inhale
-    breathingTimeoutId = setTimeout(() => {
-        instructionEl.textContent = `Retenez (${BREATHING_CYCLE.hold}s)...`;
-        visualizerEl.style.animationDuration = `${BREATHING_CYCLE.hold}s`;
-        visualizerEl.className = 'breathing-visualizer breathing-hold'; // Déclenche anim hold
-        breathingTimeoutId = setTimeout(() => {
-            instructionEl.textContent = `Expirez (${BREATHING_CYCLE.exhale}s)...`;
-            visualizerEl.style.animationDuration = `${BREATHING_CYCLE.exhale}s`;
-            visualizerEl.className = 'breathing-visualizer breathing-exhale'; // Déclenche anim exhale
-            breathingTimeoutId = setTimeout(() => {
-                visualizerEl.className = 'breathing-visualizer'; // Retour état initial visuel
-                instructionEl.textContent = "Préparez-vous...";
-                if (currentBreathLoop < BREATHING_CYCLE.loops) {
-                    breathingTimeoutId = setTimeout(() => startBreathingCycle(btn, instructionEl, visualizerEl), 1000); // Pause 1s
+/** Met à jour le compteur et passe à la phase suivante si nécessaire */
+function updateBreathingCycle() {
+    if (phaseTimer > 0) {
+        if (breathCounterEl) breathCounterEl.textContent = phaseTimer; // MAJ compteur
+        phaseTimer--; // Décrémente
+    } else {
+        // Fin de la phase actuelle, passer à la suivante
+        switch (currentPhase) {
+            case 'starting':
+            case 'pause':
+                currentPhase = 'inhale';
+                phaseTimer = BREATHING_CONFIG.inhale;
+                if (breathInstructionEl) breathInstructionEl.textContent = `Inspirez...`;
+                if (breathVisualizerEl) breathVisualizerEl.className = 'breathing-visualizer breathing-inhale';
+                 // Définir durée anim CSS (important si variable)
+                 if(breathVisualizerEl) breathVisualizerEl.style.animationDuration = `${BREATHING_CONFIG.inhale}s`;
+                break;
+            case 'inhale':
+                currentPhase = 'hold';
+                phaseTimer = BREATHING_CONFIG.hold;
+                if (breathInstructionEl) breathInstructionEl.textContent = `Retenez...`;
+                if (breathVisualizerEl) breathVisualizerEl.className = 'breathing-visualizer breathing-hold';
+                if(breathVisualizerEl) breathVisualizerEl.style.animationDuration = `${BREATHING_CONFIG.hold}s`;
+                break;
+            case 'hold':
+                currentPhase = 'exhale';
+                phaseTimer = BREATHING_CONFIG.exhale;
+                if (breathInstructionEl) breathInstructionEl.textContent = `Expirez...`;
+                if (breathVisualizerEl) breathVisualizerEl.className = 'breathing-visualizer breathing-exhale';
+                if(breathVisualizerEl) breathVisualizerEl.style.animationDuration = `${BREATHING_CONFIG.exhale}s`;
+                break;
+            case 'exhale':
+                currentBreathLoop++;
+                if (currentBreathLoop >= BREATHING_CONFIG.loops) {
+                    stopBreathingExercise(); // Fin des cycles
+                    return; // Sortir de la fonction
                 } else {
-                     stopBreathingExercise(btn, instructionEl, visualizerEl); // Fini
+                    currentPhase = 'pause';
+                    phaseTimer = BREATHING_CONFIG.pause;
+                    if (breathInstructionEl) breathInstructionEl.textContent = `Pause...`;
+                    if (breathVisualizerEl) breathVisualizerEl.className = 'breathing-visualizer'; // Retour état initial
+                     if(breathVisualizerEl) breathVisualizerEl.style.animationDuration = ''; // Reset durée anim
                 }
-            }, BREATHING_CYCLE.exhale * 1000); // Convertir secondes en ms pour setTimeout
-        }, BREATHING_CYCLE.hold * 1000);
-    }, BREATHING_CYCLE.inhale * 1000);
+                break;
+        }
+         // Mettre à jour immédiatement le compteur pour la nouvelle phase
+         if (breathCounterEl) breathCounterEl.textContent = phaseTimer;
+         phaseTimer--; // Décrémenter pour le prochain tick
+    }
 }
 
-/** Configure l'exercice de respiration. */
+/** Démarre la boucle de respiration */
+function startBreathingExercise() {
+    if (breathingIntervalId) return; // Déjà démarré
+
+    currentBreathLoop = 0;
+    currentPhase = 'starting'; // Phase initiale avant la première inspiration
+    phaseTimer = 1; // Commencer direct avec 1s de "Préparez-vous"
+
+    if (breathInstructionEl) breathInstructionEl.textContent = "Préparez-vous...";
+    if (breathCounterEl) breathCounterEl.textContent = ''; // Pas de compteur pendant prépa
+    if (breathBtn) breathBtn.textContent = 'Arrêter';
+
+    // Vider le compteur et attendre 1s avant le premier cycle via setInterval
+    setTimeout(() => {
+         // Définir le premier timer avant de lancer l'intervalle
+         phaseTimer = 0; // Pour déclencher inhale au premier tick
+         updateBreathingCycle(); // Premier appel pour initier 'inhale'
+         // Lancer l'intervalle qui décrémente chaque seconde
+         breathingIntervalId = setInterval(updateBreathingCycle, 1000);
+    }, 1000); // Attente initiale
+}
+
+/** Configure l'exercice de respiration (attache listener) */
 function setupBreathingExercise(container) {
-    const v = container.querySelector('#breathingVisualizer'), i = container.querySelector('#breathingInstruction'), b = container.querySelector('#startBreathingBtn');
-    if (!v || !i || !b) return;
-    i.textContent = `Cliquez pour ${BREATHING_CYCLE.loops} cycles (Insp ${BREATHING_CYCLE.inhale}s - Ret ${BREATHING_CYCLE.hold}s - Exp ${BREATHING_CYCLE.exhale}s).`;
-    b.addEventListener('click', () => {
-        if (b.textContent === 'Commencer') {
-            b.textContent = 'Arrêter'; i.textContent = "Préparez-vous...";
-            if(breathingTimeoutId) clearTimeout(breathingTimeoutId); // Annuler ancien timeout
-            currentBreathLoop = 0; // Réinitialiser compteur
-            breathingTimeoutId = setTimeout(() => startBreathingCycle(b, i, v), 500); // Délai court avant début
-        } else { stopBreathingExercise(b, i, v); }
+    breathVisualizerEl = container.querySelector('#breathingVisualizer');
+    breathInstructionEl = container.querySelector('#breathingInstruction');
+    breathBtn = container.querySelector('#startBreathingBtn');
+    breathCounterEl = container.querySelector('#breathingCounter'); // Récupérer élément compteur
+
+    if (!breathVisualizerEl || !breathInstructionEl || !breathBtn || !breathCounterEl) {
+        console.error("SOS LOG ERROR: Éléments manquants pour exercice respiration."); return;
+    }
+
+    // Texte initial
+    breathInstructionEl.textContent = `Cliquez pour ${BREATHING_CONFIG.loops} cycles (Insp ${BREATHING_CONFIG.inhale}s - Ret ${BREATHING_CONFIG.hold}s - Exp ${BREATHING_CONFIG.exhale}s).`;
+
+    breathBtn.addEventListener('click', () => {
+        if (currentPhase === 'idle') {
+            startBreathingExercise();
+        } else {
+            stopBreathingExercise();
+        }
     });
 }
 
-/** Affiche les étapes de la technique d'ancrage 5-4-3-2-1. */
-function setupAnchoringTechnique(container) {
-    const stepsContainer = container.querySelector('#anchoringSteps');
-    if (!stepsContainer) return;
-    stepsContainer.innerHTML = `<p>Connectez-vous à vos sens. Nommez :</p><ol class="anchoring-list"><li><strong>5</strong> choses à <strong>VOIR</strong>.</li><li><strong>4</strong> choses à <strong>TOUCHER</strong>.</li><li><strong>3</strong> choses à <strong>ENTENDRE</strong>.</li><li><strong>2</strong> choses à <strong>SENTIR</strong> (odeur).</li><li><strong>1</strong> chose à <strong>GOÛTER</strong> ou <strong>1</strong> qualité positive.</li></ol><p>Revenez à votre respiration.</p>`;
-}
+// --- Fonctions Ancrage et Phrases Réconfortantes (inchangées) ---
+function setupAnchoringTechnique(container) { /* ... (code précédent) ... */
+     const stepsContainer = container.querySelector('#anchoringSteps'); if (!stepsContainer) return; stepsContainer.innerHTML = `<p>Connectez-vous à vos sens. Nommez :</p><ol class="anchoring-list"><li><strong>5</strong> choses à <strong>VOIR</strong>.</li><li><strong>4</strong> choses à <strong>TOUCHER</strong>.</li><li><strong>3</strong> choses à <strong>ENTENDRE</strong>.</li><li><strong>2</strong> choses à <strong>SENTIR</strong> (odeur).</li><li><strong>1</strong> chose à <strong>GOÛTER</strong> ou <strong>1</strong> qualité positive.</li></ol><p>Revenez à votre respiration.</p>`;
+ }
+function setupComfortingPhrases(container) { /* ... (code précédent) ... */
+     const p = container.querySelector('#comfortPhrase'), b = container.querySelector('#newPhraseBtn'); if (!p || !b) return; const dR = () => { p.textContent = comfortingPhrases.length > 0 ? comfortingPhrases[Math.floor(Math.random() * comfortingPhrases.length)] : "Respirez."; }; b.addEventListener('click', dR); dR();
+ }
 
-/** Configure l'affichage des phrases réconfortantes. */
-function setupComfortingPhrases(container) {
-    const p = container.querySelector('#comfortPhrase'), b = container.querySelector('#newPhraseBtn');
-    if (!p || !b) return;
-    const displayRandom = () => { p.textContent = comfortingPhrases.length > 0 ? comfortingPhrases[Math.floor(Math.random() * comfortingPhrases.length)] : "Respirez."; };
-    b.addEventListener('click', displayRandom);
-    displayRandom(); // Initial
-}
 
-/** Initialise la vue SOS. */
+/** Initialise la vue SOS */
 export function initSosView(containerElement) {
     if (!containerElement) { console.error("Conteneur vue SOS introuvable."); return; }
+    // Générer le HTML avec l'élément pour le compteur
     containerElement.innerHTML = `
         <h2>Boîte à Outils SOS</h2><p class="sos-intro">Si vous vous sentez dépassé(e), essayez un de ces outils.</p>
-        <div id="sosBreathing" class="sos-tool"><h3>Respiration Guidée</h3><div class="breathing-container"><div id="breathingVisualizer" class="breathing-visualizer"></div><p id="breathingInstruction" aria-live="assertive"></p></div><button id="startBreathingBtn" class="sos-button">Commencer</button></div>
+        <div id="sosBreathing" class="sos-tool">
+             <h3>Respiration Guidée</h3>
+             <div class="breathing-container">
+                  <div id="breathingVisualizer" class="breathing-visualizer">
+                       <span id="breathingCounter" class="breathing-counter"></span> <!-- Compteur à l'intérieur -->
+                  </div>
+                  <p id="breathingInstruction" aria-live="assertive"></p>
+             </div>
+             <button id="startBreathingBtn" class="sos-button">Commencer</button>
+        </div>
         <div id="sosAnchoring" class="sos-tool"><h3>Ancrage 5-4-3-2-1</h3><div id="anchoringSteps"></div></div>
-        <div id="sosComfort" class="sos-tool"><h3>Phrase Réconfortante</h3><p id="comfortPhrase" aria-live="polite"></p><button id="newPhraseBtn" class="button-secondary">Autre phrase</button></div>`; // Utiliser classe secondaire
+        <div id="sosComfort" class="sos-tool"><h3>Phrase Réconfortante</h3><p id="comfortPhrase" aria-live="polite"></p><button id="newPhraseBtn" class="button-secondary">Autre phrase</button></div>`;
 
     const bc = containerElement.querySelector('#sosBreathing'), ac = containerElement.querySelector('#sosAnchoring'), cc = containerElement.querySelector('#sosComfort');
     if (bc) setupBreathingExercise(bc);
     if (ac) setupAnchoringTechnique(ac);
     if (cc) setupComfortingPhrases(cc);
+
+     // S'assurer que l'exercice s'arrête si on quitte la vue SOS
+     // Note: Ceci nécessite que la logique de navigation (showView dans app.js)
+     // puisse notifier ou appeler une fonction de "nettoyage" quand une vue est masquée.
+     // Pour l'instant, on arrête si l'utilisateur clique sur un autre bouton de navigation.
+     document.querySelectorAll('header nav .nav-button').forEach(navBtn => {
+          // Ne pas attacher sur le bouton SOS lui-même
+          if (navBtn.id !== 'showSosBtn') {
+               navBtn.addEventListener('click', () => {
+                    if (currentPhase !== 'idle') {
+                         // console.log("Navigation hors SOS détectée, arrêt respiration.");
+                         stopBreathingExercise();
+                    }
+               });
+          }
+     });
+     // On pourrait aussi utiliser l'API Page Visibility si besoin
+     document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden' && currentPhase !== 'idle') {
+              // console.log("Page cachée, arrêt respiration.");
+              stopBreathingExercise();
+          }
+     });
 }
