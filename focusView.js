@@ -1,193 +1,274 @@
-// focusView.js
+// focusView.js (Minuteur Focus Pomodoro)
 
-// --- Configuration du Minuteur ---
-const FOCUS_DURATION_MINUTES = 25;
-const BREAK_DURATION_MINUTES = 5;
-// Convertir en secondes pour la logique interne
-let focusDuration = FOCUS_DURATION_MINUTES * 60;
-let breakDuration = BREAK_DURATION_MINUTES * 60;
+// --- Configuration ---
+const WORK_DURATION_DEFAULT = 25 * 60; // 25 minutes en secondes
+const BREAK_DURATION_DEFAULT = 5 * 60;  // 5 minutes en secondes
+const LONG_BREAK_DURATION_DEFAULT = 15 * 60; // 15 minutes en secondes
+const SESSIONS_BEFORE_LONG_BREAK = 4;
 
-let timerInterval = null; // Pour stocker l'ID de setInterval
-let timeLeft = focusDuration; // Temps restant en secondes
-let isFocusMode = true; // True si en mode focus, false si en mode pause
-let isTimerRunning = false;
-let cyclesCompleted = 0; // Pour suivre les cycles Pomodoro
+let timerIntervalId = null;
+let currentTimerSeconds = WORK_DURATION_DEFAULT;
+let currentSessionCount = 0; // Nombre de sessions de TRAVAIL complétées
+let timerState = 'idle'; // 'idle', 'working', 'break', 'long_break'
+let currentPhaseDuration = WORK_DURATION_DEFAULT;
 
-// Références DOM
-let timeDisplayEl = null;
-let startBtnEl = null;
-let stopBtnEl = null;
-let resetBtnEl = null;
-let statusMessageEl = null;
-let progressCircleEl = null; // Pour le cercle de progression
+// Références DOM (seront initialisées dans initFocusView)
+let startStopBtnEl = null;
+let timerDisplayEl = null;
+let phaseDisplayEl = null;
+let sessionCounterEl = null;
+let visualProgressEl = null;
+let skipBreakBtnEl = null; // Bouton pour passer la pause
 
-/** Formate les secondes en MM:SS */
-function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+/** Met à jour l'affichage du minuteur (MM:SS) */
+function updateTimerDisplay() {
+    if (!timerDisplayEl) return;
+    const minutes = Math.floor(currentTimerSeconds / 60);
+    const seconds = currentTimerSeconds % 60;
+    timerDisplayEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    // Mettre à jour la progression visuelle
+    if (visualProgressEl && currentPhaseDuration > 0) {
+         const percentageElapsed = ((currentPhaseDuration - currentTimerSeconds) / currentPhaseDuration) * 100;
+         visualProgressEl.style.width = `${Math.min(100, percentageElapsed)}%`;
+         if (percentageElapsed >= 100) {
+             visualProgressEl.style.borderRadius = '10px'; // Arrondi complet
+         } else {
+             visualProgressEl.style.borderRadius = '10px 0 0 10px'; // Arrondi seulement à gauche
+         }
+    }
 }
 
-/** Met à jour l'affichage du temps et la progression */
-function updateDisplay() {
-    if (timeDisplayEl) timeDisplayEl.textContent = formatTime(timeLeft);
-    if (progressCircleEl) {
-        const totalDuration = isFocusMode ? focusDuration : breakDuration;
-        const percentage = ((totalDuration - timeLeft) / totalDuration) * 100;
-        // Le cercle de progression sera un SVG ou un div stylisé
-        // Pour un div simple:
-        // progressCircleEl.style.background = `conic-gradient(#6A5ACD ${percentage}%, #e0e0ff ${percentage}%)`;
-        // Pour un SVG, il faudra manipuler les attributs (stroke-dasharray, stroke-dashoffset)
-        // Pour l'instant, un log pour vérifier le pourcentage
-        // console.log("Progression:", percentage.toFixed(2) + "%");
-        // Mise à jour pour un cercle SVG simple (voir CSS pour les styles)
-        const circumference = 2 * Math.PI * 45; // 45 est le rayon du cercle
-        const offset = circumference - (percentage / 100) * circumference;
-        const circleProgress = progressCircleEl.querySelector('.progress-ring__circle--progress');
-        if(circleProgress) {
-            circleProgress.style.strokeDashoffset = offset;
+/** Met à jour l'affichage de la phase et du titre de la page */
+function updatePhaseDisplayAndTitle() {
+    let phaseText = "Prêt(e) ?";
+    let pageTitlePrefix = "Clair·e";
+
+    switch (timerState) {
+        case 'working':
+            phaseText = "⏱️ Concentration";
+            pageTitlePrefix = "Focus Travail";
+            if(skipBreakBtnEl) skipBreakBtnEl.style.display = 'none'; // Cacher bouton skip pendant travail
+            break;
+        case 'break':
+            phaseText = "☕ Petite Pause";
+            pageTitlePrefix = "Petite Pause";
+            if(skipBreakBtnEl) skipBreakBtnEl.style.display = 'inline-block'; // Afficher
+            break;
+        case 'long_break':
+            phaseText = "🧘 Longue Pause";
+            pageTitlePrefix = "Longue Pause";
+            if(skipBreakBtnEl) skipBreakBtnEl.style.display = 'inline-block'; // Afficher
+            break;
+        default: // idle
+             if(skipBreakBtnEl) skipBreakBtnEl.style.display = 'none';
+    }
+    if (phaseDisplayEl) phaseDisplayEl.textContent = phaseText;
+    document.title = `${pageTitlePrefix} | ${timerDisplayEl ? timerDisplayEl.textContent : ""} - Clair·e`;
+}
+
+/** Met à jour le compteur de sessions de travail complétées */
+function updateSessionCounter() {
+    if(!sessionCounterEl) return;
+    sessionCounterEl.textContent = `Pomodoros : ${currentSessionCount} / ${SESSIONS_BEFORE_LONG_BREAK}`;
+}
+
+/** Gère la fin d'une phase (travail ou pause) */
+function handlePhaseEnd() {
+    let notifTitle = "Clair·e Focus";
+    let notifBody = "";
+
+    if (timerState === 'working') {
+        notifBody = `Session de concentration terminée ! C'est l'heure de la pause.`;
+        currentSessionCount++; // Incrémenter seulement après une session de TRAVAIL
+        updateSessionCounter();
+        if (currentSessionCount > 0 && currentSessionCount % SESSIONS_BEFORE_LONG_BREAK === 0) {
+            timerState = 'long_break';
+            currentTimerSeconds = LONG_BREAK_DURATION_DEFAULT;
+            currentPhaseDuration = LONG_BREAK_DURATION_DEFAULT;
+        } else {
+            timerState = 'break';
+            currentTimerSeconds = BREAK_DURATION_DEFAULT;
+            currentPhaseDuration = BREAK_DURATION_DEFAULT;
         }
+    } else { // Fin d'une pause (courte ou longue)
+        notifBody = `La pause est terminée. Prêt(e) à vous reconcentrer ?`;
+        timerState = 'working';
+        currentTimerSeconds = WORK_DURATION_DEFAULT;
+        currentPhaseDuration = WORK_DURATION_DEFAULT;
     }
+
+    // Afficher la notification
+    if (notifBody && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(notifTitle, { body: notifBody, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+            });
+        } catch (e) { console.warn("Échec notif SW pour focus:", e); alert(notifBody); /* Fallback alerte */ }
+    } else if (notifBody) {
+        alert(notifBody); // Fallback si notifications non permises
+    }
+
+    updatePhaseDisplayAndTitle();
+    updateTimerDisplay(); // Affiche le temps complet de la nouvelle phase
+    if(startStopBtnEl) startStopBtnEl.textContent = 'Démarrer';
+    if (visualProgressEl) visualProgressEl.style.width = '0%';
 }
 
-/** Gère la fin d'une phase (focus ou pause) */
-function phaseEnded() {
-    clearInterval(timerInterval);
-    timerInterval = null;
-    isTimerRunning = false;
-    // Notification sonore simple (optionnel, à implémenter avec Web Audio si souhaité)
-    // playSound('phase_end.mp3');
-
-    if (isFocusMode) {
-        // Fin de la phase de focus, début de la pause
-        isFocusMode = false;
-        timeLeft = breakDuration;
-        if (statusMessageEl) statusMessageEl.textContent = "C'est l'heure de la pause ! Prenez 5 minutes.";
-        if (startBtnEl) startBtnEl.textContent = 'Démarrer Pause';
-        // Ici, on pourrait lancer la pause automatiquement ou attendre que l'utilisateur clique
-        // Pour l'instant, attendons un clic
-        if (startBtnEl) startBtnEl.disabled = false;
-    } else {
-        // Fin de la phase de pause, début du focus
-        isFocusMode = true;
-        timeLeft = focusDuration;
-        cyclesCompleted++;
-        if (statusMessageEl) statusMessageEl.textContent = `Cycle ${cyclesCompleted} terminé. Prêt(e) pour le focus ?`;
-        if (startBtnEl) startBtnEl.textContent = 'Démarrer Focus';
-        if (startBtnEl) startBtnEl.disabled = false;
-    }
-    updateDisplay();
-}
-
-/** Logique du minuteur (appelée chaque seconde) */
-function timerTick() {
-    timeLeft--;
-    updateDisplay();
-    if (timeLeft <= 0) {
-        phaseEnded();
-    }
-}
-
-/** Démarre le minuteur */
+/** Démarre ou continue le minuteur */
 function startTimer() {
-    if (isTimerRunning) return;
-    isTimerRunning = true;
-    if (startBtnEl) startBtnEl.disabled = true;
-    if (stopBtnEl) stopBtnEl.disabled = false;
-    if (resetBtnEl) resetBtnEl.disabled = false;
-
-    if (isFocusMode) {
-        if (statusMessageEl) statusMessageEl.textContent = "Concentration en cours...";
-    } else {
-        if (statusMessageEl) statusMessageEl.textContent = "Pause en cours...";
+    if (timerIntervalId) { // Si déjà un intervalle (reprise après pause), le nettoyer
+        clearInterval(timerIntervalId);
+        timerIntervalId = null;
     }
-    // Démarre l'intervalle
-    timerInterval = setInterval(timerTick, 1000);
-    updateDisplay(); // Mettre à jour l'affichage immédiatement
+
+    // Si 'idle', on commence une session de travail
+    if (timerState === 'idle') {
+        timerState = 'working';
+        currentTimerSeconds = WORK_DURATION_DEFAULT;
+        currentPhaseDuration = WORK_DURATION_DEFAULT;
+        // Pas de reset de currentSessionCount ici, se fait dans resetTimer
+    }
+    // Si on est en pause et on clique 'Reprendre', on continue la pause
+    // Si on était en 'break' ou 'long_break' et que handlePhaseEnd a mis 'Démarrer',
+    // alors le timerState est maintenant 'working' ou 'break'/'long_break' avec le nouveau temps.
+
+    // Si la phase actuelle est travail mais le temps est 0 (ex: après skip break),
+    // on doit passer directement à la prochaine phase de travail (ou fin si c'était la dernière)
+    if (timerState === 'working' && currentTimerSeconds <= 0) {
+        // Cela ne devrait pas arriver si on clique sur "Démarrer" après une pause.
+        // C'est plus pour une reprise d'un état invalide.
+        currentTimerSeconds = WORK_DURATION_DEFAULT; // Réinitialiser au temps de travail
+        currentPhaseDuration = WORK_DURATION_DEFAULT;
+    }
+
+
+    updatePhaseDisplayAndTitle();
+    if(startStopBtnEl) startStopBtnEl.textContent = 'Pauser';
+
+    timerIntervalId = setInterval(() => {
+        if (currentTimerSeconds > 0) {
+            currentTimerSeconds--;
+            updateTimerDisplay();
+            updatePhaseDisplayAndTitle(); // Mettre à jour titre de page avec temps
+        }
+        if (currentTimerSeconds <= 0) { // Utiliser <= pour être sûr
+            clearInterval(timerIntervalId);
+            timerIntervalId = null;
+            handlePhaseEnd();
+        }
+    }, 1000);
 }
 
-/** Arrête le minuteur */
-function stopTimer() {
-    if (!isTimerRunning) return;
-    isTimerRunning = false;
-    clearInterval(timerInterval);
-    timerInterval = null;
-    if (startBtnEl) startBtnEl.disabled = false;
-    if (stopBtnEl) stopBtnEl.disabled = true;
-    if (statusMessageEl) statusMessageEl.textContent = "Minuteur en pause.";
+/** Met en pause le minuteur */
+function pauseTimer() {
+    if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        timerIntervalId = null;
+        if(startStopBtnEl) startStopBtnEl.textContent = 'Reprendre';
+        updatePhaseDisplayAndTitle(); // Mettre à jour titre avec "Pause"
+    }
 }
 
-/** Réinitialise le minuteur */
+/** Réinitialise le minuteur à l'état initial */
 function resetTimer() {
-    stopTimer(); // Arrêter d'abord s'il tourne
-    isFocusMode = true; // Revenir au mode focus
-    timeLeft = focusDuration;
-    cyclesCompleted = 0;
-    if (statusMessageEl) statusMessageEl.textContent = "Prêt(e) à commencer une session de focus ?";
-    if (startBtnEl) { startBtnEl.textContent = 'Démarrer Focus'; startBtnEl.disabled = false; }
-    if (stopBtnEl) stopBtnEl.disabled = true;
-    if (resetBtnEl) resetBtnEl.disabled = true; // Désactiver reset si déjà à l'état initial
-    updateDisplay();
+    if(timerIntervalId) clearInterval(timerIntervalId);
+    timerIntervalId = null;
+    timerState = 'idle';
+    currentTimerSeconds = WORK_DURATION_DEFAULT;
+    currentPhaseDuration = WORK_DURATION_DEFAULT;
+    currentSessionCount = 0; // Réinitialiser le compteur de Pomodoros
+    updateTimerDisplay();
+    updatePhaseDisplayAndTitle();
+    updateSessionCounter();
+    if(startStopBtnEl) startStopBtnEl.textContent = 'Démarrer';
+    if (visualProgressEl) visualProgressEl.style.width = '0%';
 }
+
+/** Permet de passer la pause en cours et de démarrer une session de travail */
+function skipCurrentBreak() {
+    if (timerState === 'break' || timerState === 'long_break') {
+        if(timerIntervalId) clearInterval(timerIntervalId); // Arrêter le minuteur de pause
+        timerIntervalId = null;
+
+        timerState = 'working'; // Passer directement en mode travail
+        currentTimerSeconds = WORK_DURATION_DEFAULT;
+        currentPhaseDuration = WORK_DURATION_DEFAULT;
+
+        updateTimerDisplay();
+        updatePhaseDisplayAndTitle();
+        startTimer(); // Démarrer immédiatement la session de travail
+    }
+}
+
 
 /** Initialise la vue Focus */
 export function initFocusView(containerElement) {
-    if (!containerElement) { console.error("Focus LOG ERROR: Conteneur introuvable."); return; }
-
-    // Réinitialiser les durées au cas où elles auraient été modifiées (pour plus tard)
-    focusDuration = FOCUS_DURATION_MINUTES * 60;
-    breakDuration = BREAK_DURATION_MINUTES * 60;
-    timeLeft = focusDuration; // Initialiser avec la durée de focus
-    isFocusMode = true;
-    isTimerRunning = false;
-    cyclesCompleted = 0;
-    if (timerInterval) clearInterval(timerInterval); // S'assurer qu'aucun ancien minuteur ne tourne
-
+    if (!containerElement) { console.error("Conteneur vue Focus introuvable."); return; }
 
     containerElement.innerHTML = `
         <h2>Minuteur Focus (Pomodoro)</h2>
-        <div class="focus-timer-container">
-            <div class="progress-circle-container">
-                <svg class="progress-ring" width="100" height="100">
-                    <circle class="progress-ring__circle progress-ring__circle--bg" stroke-width="8" fill="transparent" r="45" cx="50" cy="50"/>
-                    <circle class="progress-ring__circle progress-ring__circle--progress" stroke-width="8" fill="transparent" r="45" cx="50" cy="50"/>
-                </svg>
-                <div id="timeDisplay" class="time-display">${formatTime(timeLeft)}</div>
+        <div class="focus-timer-wrapper">
+            <div id="phaseDisplay" class="phase-display">Prêt(e) ?</div>
+            <div id="timerDisplay" class="timer-display">${String(WORK_DURATION_DEFAULT / 60).padStart(2, '0')}:00</div>
+            <div class="visual-progress-container">
+                <div id="visualProgress" class="visual-progress-bar"></div>
             </div>
-
-            <p id="statusMessage" class="status-message" aria-live="polite">Prêt(e) à commencer une session de focus ?</p>
-            <div class="timer-controls">
-                <button id="startFocusBtn" class="button-primary">Démarrer Focus</button>
-                <button id="stopFocusBtn" class="button-secondary" disabled>Pause</button>
-                <button id="resetFocusBtn" class="button-secondary" disabled>Réinitialiser</button>
+            <div id="sessionCounter" class="session-counter">Pomodoros : 0 / ${SESSIONS_BEFORE_LONG_BREAK}</div>
+            <div class="focus-controls">
+                <button id="startStopFocusBtn" class="button-primary">Démarrer</button>
+                <button id="resetFocusBtn" class="button-secondary">Réinitialiser</button>
+                <button id="skipBreakBtn" class="button-secondary" style="display:none;">Passer la Pause</button>
             </div>
-             <!-- Optionnel : Section pour lier à une tâche du planificateur -->
-             <!-- <div class="focus-task-link">
-                 <label for="focusTaskSelect">Lier à une tâche :</label>
-                 <select id="focusTaskSelect"><option value="">Aucune</option></select>
-             </div> -->
+        </div>
+        <div class="focus-instructions">
+            <p>Utilisez ce minuteur pour alterner périodes de concentration et pauses.</p>
+            <ul>
+                <li>Concentration : ${WORK_DURATION_DEFAULT / 60} minutes</li>
+                <li>Petite pause : ${BREAK_DURATION_DEFAULT / 60} minutes</li>
+                <li>Après ${SESSIONS_BEFORE_LONG_BREAK} sessions de concentration, une longue pause de ${LONG_BREAK_DURATION_DEFAULT / 60} minutes.</li>
+            </ul>
+             <p><em>Une notification s'affichera à la fin de chaque phase (si autorisée).</em></p>
         </div>
     `;
 
     // Récupérer les éléments du DOM
-    timeDisplayEl = containerElement.querySelector('#timeDisplay');
-    startBtnEl = containerElement.querySelector('#startFocusBtn');
-    stopBtnEl = containerElement.querySelector('#stopFocusBtn');
-    resetBtnEl = containerElement.querySelector('#resetFocusBtn');
-    statusMessageEl = containerElement.querySelector('#statusMessage');
-    progressCircleEl = containerElement.querySelector('.progress-ring'); // Le SVG
+    startStopBtnEl = containerElement.querySelector('#startStopFocusBtn');
+    timerDisplayEl = containerElement.querySelector('#timerDisplay');
+    phaseDisplayEl = containerElement.querySelector('#phaseDisplay');
+    sessionCounterEl = containerElement.querySelector('#sessionCounter');
+    const resetBtn = containerElement.querySelector('#resetFocusBtn');
+    visualProgressEl = containerElement.querySelector('#visualProgress');
+    skipBreakBtnEl = containerElement.querySelector('#skipBreakBtn');
 
-    if (!timeDisplayEl || !startBtnEl || !stopBtnEl || !resetBtnEl || !statusMessageEl || !progressCircleEl) {
-        console.error("Focus LOG ERROR: Un ou plusieurs éléments UI du minuteur sont introuvables.");
+
+    if (!startStopBtnEl || !timerDisplayEl || !phaseDisplayEl || !sessionCounterEl || !resetBtn || !visualProgressEl || !skipBreakBtnEl) {
+        console.error("Éléments UI du minuteur Focus introuvables après création.");
         return;
     }
 
-    // Attacher les écouteurs d'événements
-    startBtnEl.addEventListener('click', startTimer);
-    stopBtnEl.addEventListener('click', stopTimer);
-    resetBtnEl.addEventListener('click', resetTimer);
+    // Attacher les écouteurs
+    startStopBtnEl.addEventListener('click', () => {
+        if (timerState === 'idle' || startStopBtnEl.textContent === 'Reprendre' || startStopBtnEl.textContent === 'Démarrer') {
+            startTimer();
+        } else { // Si "Pauser"
+            pauseTimer();
+        }
+    });
+
+    resetBtn.addEventListener('click', resetTimer);
+    skipBreakBtnEl.addEventListener('click', skipCurrentBreak);
+
+
+    // Demander la permission pour les notifications à l'initialisation de la vue
+    // si elle n'a pas encore été demandée ou si elle est 'default'.
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') { console.log("Permission notifications accordée."); }
+            else { console.log("Permission notifications refusée."); }
+        });
+    }
 
     // Initialiser l'affichage
-    updateDisplay();
-    console.log("Focus LOG: Vue Focus initialisée.");
+    resetTimer(); // Assure que tout est à l'état par défaut
 }
