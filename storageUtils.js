@@ -71,8 +71,36 @@ export async function saveMoodEntry(moodData) { if(!moodData||typeof moodData!==
 export async function getAllMoodEntries() { return getAllData(STORES.MOOD); }
 export async function getRoutineForDate(dateString) { const d = await getDataByKey(STORES.ROUTINE, dateString); return (d && Array.isArray(d.tasks)) ? d : null; }
 export async function saveRoutineForDate(dateString, routineData) { if(!dateString) throw new Error("Date manquante routine"); if (routineData === null) { return deleteDataByKey(STORES.ROUTINE, dateString); } else { if(typeof routineData!=='object'||!Array.isArray(routineData.tasks)) throw new Error("Donnée routine invalide"); return putData(STORES.ROUTINE, { ...routineData, date: dateString }); } }
-export async function getPlannerForDate(dateString) { const d = await getDataByKey(STORES.PLANNER, dateString); return (d && Array.isArray(d.tasks)) ? d : null; }
-export async function savePlannerForDate(dateString, plannerData) { if(!dateString) throw new Error("Date manquante plan"); if (plannerData === null) { return deleteDataByKey(STORES.PLANNER, dateString); } else { if(typeof plannerData!=='object'||!Array.isArray(plannerData.tasks)) throw new Error("Donnée plan invalide"); return putData(STORES.PLANNER, { ...plannerData, date: dateString }); } }
+export async function getPlannerForDate(dateString) {
+    if(!dateString) return null;
+    const data = await operateOnStore(STORES.PLANNER, 'readonly', store => store.get(dateString));
+    if (data && typeof data === 'object' && Array.isArray(data.tasks)) {
+        // S'assurer que chaque tâche a un champ subTasks (tableau vide par défaut)
+        data.tasks.forEach(task => {
+            if (!Array.isArray(task.subTasks)) {
+                task.subTasks = [];
+            }
+            // S'assurer que chaque sous-tâche a les champs nécessaires
+            task.subTasks.forEach(subTask => {
+                 if (subTask.id === undefined) subTask.id = Date.now() + Math.random(); // ID unique si manquant
+                 if (subTask.completed === undefined) subTask.completed = false;
+            });
+        });
+        return data;
+    }
+    return null; // Ou { tasks: [] } si on préfère toujours retourner un objet
+}
+
+export async function savePlannerForDate(dateString, plannerData) {
+    if(!dateString) throw new Error("Date manquante pour sauvegarde plan");
+    if (plannerData === null) { // Pour supprimer le plan du jour
+        return operateOnStore(STORES.PLANNER, 'readwrite', store => store.delete(dateString));
+    } else {
+        if(typeof plannerData !== 'object' || !Array.isArray(plannerData.tasks)) throw new Error("Donnée plan invalide");
+        // S'assurer que la date est bien dans l'objet sauvegardé
+        return operateOnStore(STORES.PLANNER, 'readwrite', store => store.put({ ...plannerData, date: dateString }));
+    }
+}
 export async function getVictories() { return getAllData(STORES.VICTORIES); }
 export async function addVictory(victoryData) { if(!victoryData||typeof victoryData!=='object'||!victoryData.text) throw new Error("Donnée victoire invalide"); return putData(STORES.VICTORIES, victoryData); }
 export async function deleteVictory(victoryId) { return deleteDataByKey(STORES.VICTORIES, victoryId); }
