@@ -1,4 +1,4 @@
-// app.js (Intégrant FocusTimerView)
+// app.js (Vérification navButtons pour duplicata "Planner")
 
 // --- IMPORTS ---
 import { initSobrietyTracker } from './sobrietyTracker.js';
@@ -13,7 +13,7 @@ import { initVictoriesView } from './victoriesView.js';
 import { initTestimonialsView } from './testimonialsView.js';
 import { initSettingsView } from './settingsView.js';
 import { initCravingsView } from './cravingsView.js';
-import { initFocusTimerView } from './focusTimerView.js'; // *** AJOUT IMPORT FOCUSTIMERVIEW ***
+import { initFocusTimerView } from './focusTimerView.js';
 
 // --- Constantes et Variables Globales ---
 const ZEN_MODE_KEY = 'claireAppZenModeEnabled';
@@ -36,17 +36,10 @@ function registerServiceWorker() {
                 setupServiceWorkerUpdateHandling(registration);
             })
             .catch(error => { console.error('Échec enregistrement SW:', error); });
-
         let refreshing;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (refreshing) return;
-            console.log("Nouveau SW activé. Rechargement...");
-            window.location.reload();
-            refreshing = true;
-        });
+        navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; console.log("Nouveau SW activé. Rechargement..."); window.location.reload(); refreshing = true; });
     } else { console.log('Service Workers non supportés.'); }
 }
-
 function setupServiceWorkerUpdateHandling(registration) {
     if (registration.waiting) { console.log("SW en attente trouvé immédiatement."); showUpdateButton(registration); }
     registration.addEventListener('updatefound', () => {
@@ -60,16 +53,12 @@ function setupServiceWorkerUpdateHandling(registration) {
         }
     });
 }
-
 function showUpdateButton(registration) {
-    const existingButton = document.getElementById('sw-update-button');
-    if (existingButton) existingButton.remove();
-    const updateButton = document.createElement('button');
-    updateButton.id = 'sw-update-button'; updateButton.textContent = 'Mise à jour disponible ! Recharger'; updateButton.className = 'update-available-button';
+    const existingButton = document.getElementById('sw-update-button'); if (existingButton) existingButton.remove();
+    const updateButton = document.createElement('button'); updateButton.id = 'sw-update-button'; updateButton.textContent = 'Mise à jour disponible ! Recharger'; updateButton.className = 'update-available-button';
     updateButton.addEventListener('click', () => { if (registration.waiting) { updateButton.disabled = true; updateButton.textContent = 'Mise à jour...'; registration.waiting.postMessage({ type: 'SKIP_WAITING' }); } else { window.location.reload(); } });
     document.body.appendChild(updateButton);
 }
-
 
 // --- Gestion de l'affichage des vues ---
 function showView(viewId) {
@@ -85,29 +74,25 @@ function showView(viewId) {
 
     if (viewId !== 'toggleZenModeView') {
          let buttonId;
-         // Cas spécial pour Settings et FocusTimer qui ont des boutons sans "show" dans leur ID HTML (juste emoji)
          if (viewId === 'settingsView') { buttonId = 'showSettingsBtn'; }
-         else if (viewId === 'focusTimerView') { buttonId = 'showFocusTimerBtn'; } // Bouton pour Focus
+         else if (viewId === 'focusTimerView') { buttonId = 'showFocusTimerBtn'; }
+         else if (viewId === 'cravingsView') { buttonId = 'showCravingsBtn'; } // Ajouter cas pour Cravings
          else { const baseName = viewId.replace('View', ''); buttonId = `show${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Btn`; }
-
         const buttonToActivate = document.getElementById(buttonId);
         if (buttonToActivate) { buttonToActivate.classList.add('active'); }
         else { if (buttonId !== 'showToggleZenModeBtn') { console.warn(`Bouton navigation '${buttonId}' introuvable pour vue '${viewId}'.`); } }
     }
     window.scrollTo(0, 0);
 }
-window.showView = showView; // Rendre accessible globalement
-
+window.showView = showView;
 
 // --- Initialisation des modules de l'application ---
 function initializeApp() {
     console.log("DOM Chargé. Initialisation application Clair·e...");
-
     zenModeButton = document.getElementById('toggleZenModeBtn');
     if (zenModeButton) { const initialZenState = isZenModeEnabled(); setZenMode(initialZenState); zenModeButton.addEventListener('click', toggleZenMode); }
     else { console.warn("Bouton 'toggleZenModeBtn' introuvable."); }
 
-    // *** AJOUT DE focusTimerView À LA LISTE ***
     const views = [
         { id: 'sobrietyView', initFn: initSobrietyTracker }, { id: 'journalView', initFn: initJournal },
         { id: 'moodTrackerView', initFn: initMoodTracker }, { id: 'progressView', initFn: initProgressView },
@@ -115,9 +100,8 @@ function initializeApp() {
         { id: 'plannerView', initFn: initPlannerView }, { id: 'testimonialsView', initFn: initTestimonialsView },
         { id: 'victoriesView', initFn: initVictoriesView }, { id: 'sosView', initFn: initSosView },
         { id: 'settingsView', initFn: initSettingsView }, { id: 'cravingsView', initFn: initCravingsView },
-        { id: 'focusTimerView', initFn: initFocusTimerView } // <<<< NOUVELLE VUE ICI
+        { id: 'focusTimerView', initFn: initFocusTimerView }
     ];
-
     views.forEach(view => {
         const container = document.getElementById(view.id);
         if (container && typeof view.initFn === 'function') {
@@ -126,11 +110,11 @@ function initializeApp() {
         } else if (!container) { console.error(`Conteneur '${view.id}' introuvable.`); }
     });
 
-    // *** AJOUT DE 'FocusTimer' À LA LISTE DES BOUTONS ***
+    // Assurez-vous que 'Planner' est unique ici et correspond à l'ID du bouton dans index.html (showPlannerBtn)
     const navButtons = [
         'Sobriety', 'Journal', 'MoodTracker', 'Progress', 'Exercises', 'Routine',
-        'Planner', 'Testimonials', 'Victories', 'Sos', 'Settings', 'Cravings',
-        'FocusTimer' // <<<< NOUVEAU NOM ICI (correspond à l'ID du bouton: showFocusTimerBtn)
+        'Planner', // <<< VÉRIFIER L'UNICITÉ ET LA CASSE
+        'Testimonials', 'Victories', 'Cravings', 'FocusTimer', 'Settings', 'Sos' // Ordre peut varier
     ];
     navButtons.forEach(viewName => {
         const buttonId = `show${viewName}Btn`;
