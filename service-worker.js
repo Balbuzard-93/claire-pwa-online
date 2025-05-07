@@ -1,16 +1,32 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v38'; // <<<< VERSION INCRÉMENTÉE
+const CACHE_NAME = 'claire-static-cache-v39'; // <<<< VERSION INCRÉMENTÉE
 
 // Liste à jour incluant tous les fichiers JS et CSS modifiés/nouveaux
 const APP_SHELL_URLS = [
-    '/', '/index.html', '/style.css', '/app.js', '/storageUtils.js',
-    '/sobrietyTracker.js', '/journal.js', '/moodTracker.js', '/progressView.js',
-    '/badges.js', '/sosView.js', '/exercisesView.js', '/routineView.js',
-    '/plannerView.js', '/victoriesView.js', '/testimonialsView.js',
-    '/settingsView.js', '/cravingsView.js',
-    '/focusView.js', // <<< AJOUTÉ ICI
-    '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'
+    '/',
+    '/index.html',        // Modifié (nav)
+    '/style.css',         // Modifié (nav, suppression zen, ajout thoughtRecord)
+    '/app.js',            // Modifié (nav, suppression zen, init thoughtRecord)
+    '/storageUtils.js',   // Modifié (DB_VERSION, store thought_records, export)
+    '/sobrietyTracker.js',
+    '/journal.js',
+    '/moodTracker.js',
+    '/progressView.js',
+    '/badges.js',
+    '/sosView.js',
+    '/exercisesView.js',
+    '/routineView.js',
+    '/plannerView.js',
+    '/victoriesView.js',
+    '/testimonialsView.js',
+    '/settingsView.js',
+    '/cravingsView.js',
+    '/focusView.js',
+    '/thoughtRecordView.js', // <<< NOUVEAU FICHIER
+    '/manifest.json',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png'
 ];
 
 // --- Événement INSTALL ---
