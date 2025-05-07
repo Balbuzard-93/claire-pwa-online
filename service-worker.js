@@ -1,18 +1,18 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v49'; // <<<< VERSION INCRÉMENTÉE
+const CACHE_NAME = 'claire-static-cache-v50'; // <<<< VERSION INCRÉMENTÉE
 
-// Assurez-vous que cette liste est EXACTEMENT correcte
 const APP_SHELL_URLS = [
     '/',
     '/index.html',
     '/style.css',
-    '/app.js', // Modifié
+    '/app.js',
     '/storageUtils.js',
-    '/consumptionView.js', // (Ancien sobrietyTracker.js)
+    // '/sobrietyTracker.js', // ANCIEN - DOIT ÊTRE SUPPRIMÉ
+    '/consumptionView.js',   // NOUVEAU NOM POUR LE SUIVI
     '/journal.js',
     '/moodTracker.js',
-    '/progressView.js',
+    '/progressView.js',      // Modifié pour importer depuis consumptionView.js
     '/badges.js',
     '/sosView.js',
     '/exercisesView.js',
@@ -24,58 +24,24 @@ const APP_SHELL_URLS = [
     '/settingsView.js',
     '/cravingsView.js',
     '/focusView.js',
-    '/motivationUtils.js',  // Nouveau fichier
-    '/activityLogView.js',   // Nouveau fichier
+    '/motivationUtils.js',  // ASSURER PRÉSENCE
+    '/activityLogView.js',   // ASSURER PRÉSENCE
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png'
 ];
 
-// --- Événement INSTALL ---
+// --- Le reste du code (install, activate, fetch, message) ---
 self.addEventListener('install', event => {
   console.log('Service Worker: Installation (Cache version:', CACHE_NAME, ')');
-  event.waitUntil(
-    (async () => {
-      try {
-        const cache = await caches.open(CACHE_NAME);
-        console.log('Service Worker: Mise en cache de l\'App Shell...');
-        const requests = APP_SHELL_URLS.map(url => new Request(url, { cache: 'reload' }));
-        await cache.addAll(requests);
-        console.log('Service Worker: App Shell mis en cache avec succès.');
-      } catch (error) {
-        console.error('Service Worker: Échec cache addAll:', error);
-        console.error('URLs tentées:', APP_SHELL_URLS);
-         try { const dC=await caches.open(CACHE_NAME+'-debug-failed'); for(const u of APP_SHELL_URLS){try{await dC.add(new Request(u,{cache:'reload'}));}catch(aE){console.error(`SW Debug: ÉCHEC ${u}`,aE);}} } catch(e){}
-      }
-    })()
-  );
+  event.waitUntil( (async () => { try { const c = await caches.open(CACHE_NAME); const reqs = APP_SHELL_URLS.map(u=>new Request(u,{cache:'reload'})); await c.addAll(reqs); console.log('SW: App Shell mis en cache.'); } catch (e) { console.error('SW: Échec cache addAll:',e); console.error('URLs:',APP_SHELL_URLS); try{const dC=await caches.open(CACHE_NAME+'-debug-failed'); for(const u of APP_SHELL_URLS){try{await dC.add(new Request(u,{cache:'reload'}));}catch(aE){console.error(`SW Debug: ÉCHEC ${u}`,aE);}}}catch(e){}} })() );
 });
-
-// --- Événement ACTIVATE ---
 self.addEventListener('activate', event => {
-  console.log('Service Worker: Activation (Cache version:', CACHE_NAME, ')');
-  event.waitUntil(
-    (async () => {
-      try {
-        const cN = await caches.keys();
-        const dP = cN.map(cN => { if((cN.startsWith('claire-static-cache-')||cN.endsWith('-debug-failed')) && cN !== CACHE_NAME) { console.log('SW: Suppression ancien cache:', cN); return caches.delete(cN); } return Promise.resolve(); });
-        await Promise.all(dP);
-        console.log('Service Worker: Anciens caches nettoyés.');
-        await self.clients.claim();
-        console.log('Service Worker: Contrôle clients revendiqué.');
-      } catch (error) { console.error('SW: Échec nettoyage caches:', error); }
-    })()
-  );
+  console.log('SW: Activation (Cache:', CACHE_NAME, ')');
+  event.waitUntil( (async () => { try { const cN=await caches.keys(); const dP=cN.map(cN=>{if((cN.startsWith('claire-static-cache-')||cN.endsWith('-debug-failed'))&&cN!==CACHE_NAME){console.log('SW: Nettoyage ancien cache:',cN);return caches.delete(cN);}return Promise.resolve();}); await Promise.all(dP); await self.clients.claim(); console.log('SW: Contrôle clients revendiqué.'); } catch (e) { console.error('SW: Échec nettoyage:', e); } })() );
 });
-
-// --- Événement FETCH ---
 self.addEventListener('fetch', event => {
-    const { request } = event; const url = new URL(request.url);
-    if (request.method !== 'GET' || !url.protocol.startsWith('http')) { return; }
-    if (APP_SHELL_URLS.includes(url.pathname) || request.mode === 'navigate') {
-        event.respondWith( (async () => { try { const c = await caches.open(CACHE_NAME); const cR = await c.match(request); const nFP = fetch(request).then(nR => { if(nR.ok){c.put(request, nR.clone());} return nR; }).catch(e => {console.warn('SW: Fetch BKG échoué:',request.url,e); return null;}); if(cR){return cR;} const nR = await nFP; if(nR){return nR;} console.error('SW: Échec Cache&Net:', request.url); if(request.mode==='navigate'){const fR=await c.match('/'); if(fR)return fR;} return new Response("Hors ligne.",{status:503,headers:{'Content-Type':'text/plain'}});} catch (e) { console.error('SW: Err fetch:',e); return new Response("Erreur.",{status:500});}})());
-    }
+    const {request}=event; const url=new URL(request.url); if(request.method!=='GET'||!url.protocol.startsWith('http'))return;
+    if(APP_SHELL_URLS.includes(url.pathname)||request.mode==='navigate'){event.respondWith((async()=>{try{const c=await caches.open(CACHE_NAME); const cR=await c.match(request); const nFP=fetch(request).then(nR=>{if(nR.ok){c.put(request,nR.clone());}return nR;}).catch(e=>{return null;}); if(cR)return cR; const nR=await nFP; if(nR)return nR; if(request.mode==='navigate'){const fR=await c.match('/'); if(fR)return fR;} return new Response("Hors ligne.",{status:503,headers:{'Content-Type':'text/plain'}});}catch(e){return new Response("Erreur.",{status:500});}})());}
 });
-
-// --- Événement MESSAGE ---
-self.addEventListener('message', event => { if (event.data?.type === 'SKIP_WAITING') { console.log('SW: Skip waiting reçu.'); self.skipWaiting(); }});
+self.addEventListener('message', event => { if (event.data?.type === 'SKIP_WAITING') { self.skipWaiting(); }});
