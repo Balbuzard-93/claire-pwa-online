@@ -1,14 +1,14 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v39'; // <<<< VERSION INCRÉMENTÉE
+const CACHE_NAME = 'claire-static-cache-v36'; // <<<< VERSION INCRÉMENTÉE
 
-// Liste à jour
+// Liste à jour incluant tous les fichiers JS et CSS modifiés/nouveaux
 const APP_SHELL_URLS = [
     '/',
-    '/index.html',
-    '/style.css',
-    '/app.js',
-    '/storageUtils.js',       // Modifié
+    '/index.html',        // Modifié (nav)
+    '/style.css',         // Modifié (nav, suppression zen, ajout cravings/settings)
+    '/app.js',            // Modifié (nav, suppression zen, init settings/cravings/focus)
+    '/storageUtils.js',   // Modifié (suppression zen, ajout distractions)
     '/sobrietyTracker.js',
     '/journal.js',
     '/moodTracker.js',
@@ -20,9 +20,9 @@ const APP_SHELL_URLS = [
     '/plannerView.js',
     '/victoriesView.js',
     '/testimonialsView.js',
-    '/settingsView.js',
-    '/cravingsView.js',
-    '/focusTimerView.js',
+    '/settingsView.js',      // Nouveau (ou déjà là si fait précédemment)
+    '/cravingsView.js',      // Nouveau
+    '/focusView.js',         // Nouveau
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png'
@@ -40,9 +40,9 @@ self.addEventListener('install', event => {
         await cache.addAll(requests);
         console.log('Service Worker: App Shell mis en cache avec succès.');
       } catch (error) {
-        console.error('Service Worker: Échec de la mise en cache addAll:', error);
+        console.error('Service Worker: Échec cache addAll:', error);
         console.error('URLs tentées:', APP_SHELL_URLS);
-         try { const dC=await caches.open(CACHE_NAME+'-debug-failed'); for(const u of APP_SHELL_URLS){try{await dC.add(new Request(u,{cache:'reload'}));}catch(aE){console.error(`SW Debug: ÉCHEC ${u}`,aE);}} } catch(e){}
+         try { const dC=await caches.open(CACHE_NAME+'-debug'); for(const u of APP_SHELL_URLS){try{await dC.add(new Request(u,{cache:'reload'}));}catch(aE){console.error(`SW Debug: ÉCHEC ${u}`,aE);}} } catch(e){}
       }
     })()
   );
@@ -54,21 +54,13 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     (async () => {
       try {
-        const cacheNames = await caches.keys();
-        const deletePromises = cacheNames.map(cacheName => {
-          if ((cacheName.startsWith('claire-static-cache-') || cacheName.endsWith('-debug-failed')) && cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Suppression ancien cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-          return Promise.resolve();
-        });
-        await Promise.all(deletePromises);
+        const cN = await caches.keys();
+        const dP = cN.map(cN => { if((cN.startsWith('claire-static-cache-')||cN.endsWith('-debug-failed')) && cN !== CACHE_NAME) { console.log('SW: Suppression ancien cache:', cN); return caches.delete(cN); } return Promise.resolve(); });
+        await Promise.all(dP);
         console.log('Service Worker: Anciens caches nettoyés.');
         await self.clients.claim();
         console.log('Service Worker: Contrôle clients revendiqué.');
-      } catch (error) {
-        console.error('Service Worker: Échec nettoyage anciens caches:', error);
-      }
+      } catch (error) { console.error('SW: Échec nettoyage caches:', error); }
     })()
   );
 });
