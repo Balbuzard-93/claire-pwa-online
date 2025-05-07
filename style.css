@@ -220,6 +220,132 @@ main#app {
 #addDistractionBtn { padding: 0.6rem 1rem; flex-shrink: 0;}
 .no-distractions-message { color: #888; font-style: italic; }
 
+#focusView h2 {
+    text-align: center;
+    color: #483D8B;
+    margin-bottom: 1.5rem;
+}
+
+.focus-timer-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem; /* Espace entre cercle, message, contrôles */
+    padding: 1rem;
+}
+
+.progress-circle-container {
+    position: relative; /* Pour superposer le texte sur le SVG */
+    width: 120px; /* Taille du conteneur du cercle */
+    height: 120px;
+    margin-bottom: 1rem;
+}
+
+.progress-ring {
+    transform: rotate(-90deg); /* Faire commencer le cercle en haut */
+}
+
+.progress-ring__circle {
+    transition: stroke-dashoffset 0.35s; /* Animation douce du progrès */
+    transform: rotate(0deg); /* Annuler la rotation pour le cercle lui-même */
+    transform-origin: 50% 50%; /* Point de rotation au centre */
+}
+
+.progress-ring__circle--bg { /* Cercle de fond */
+    stroke: #e0e0ff; /* Couleur lavande très pâle pour le fond */
+}
+
+.progress-ring__circle--progress { /* Cercle de progression */
+    stroke: #6A5ACD; /* Couleur principale (Slate Blue) */
+    stroke-linecap: round; /* Extrémités arrondies */
+    /* Calculé en JS: stroke-dasharray: circumference; stroke-dashoffset: circumference - (percentage/100 * circumference); */
+}
+
+#timeDisplay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.8em; /* Plus grand pour la visibilité */
+    font-weight: bold;
+    color: #483D8B;
+    font-variant-numeric: tabular-nums; /* Pour que les chiffres aient la même largeur */
+}
+
+#statusMessage.status-message {
+    font-size: 1em;
+    color: #555;
+    text-align: center;
+    min-height: 1.5em; /* Éviter les sauts */
+    font-style: italic;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap; /* Permettre le retour à la ligne sur petit écran */
+}
+
+.timer-controls button {
+    /* Les classes .button-primary et .button-secondary seront appliquées */
+    min-width: 120px; /* Assurer une bonne taille cliquable */
+}
+.timer-controls button:disabled {
+    background-color: #ccc;
+    border-color: #ccc;
+    color: #888;
+    cursor: not-allowed;
+}
+.timer-controls button#startFocusBtn:disabled {
+     /* Garder un style un peu différent pour indiquer qu'il est en cours ou fini */
+}
+
+
+/* Optionnel: Section lien tâche */
+.focus-task-link {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #ddd;
+    width: 100%;
+    max-width: 300px;
+    text-align: center;
+}
+.focus-task-link label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9em;
+    color: #666;
+}
+#focusTaskSelect {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    min-width: 200px;
+}
+
+/* --- Styles Mode Zen pour Focus --- */
+body.zen-mode .focus-timer-container {
+    gap: 1rem;
+}
+body.zen-mode .progress-circle-container {
+    width: 100px; height: 100px; margin-bottom: 0.5rem;
+}
+body.zen-mode #timeDisplay {
+    font-size: 1.5em;
+}
+body.zen-mode #statusMessage.status-message {
+    font-size: 0.9em;
+}
+body.zen-mode .timer-controls button {
+    min-width: 100px;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+}
+body.zen-mode .focus-task-link {
+    display: none; /* Cacher le lien tâche en mode Zen pour simplifier */
+}
+
 
 /* --- Focus Visible --- */
 :focus-visible { outline: 3px solid #87CEEB; outline-offset: 2px; box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.3); border-radius: 5px; }
