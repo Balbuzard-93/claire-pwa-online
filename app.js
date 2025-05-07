@@ -1,4 +1,4 @@
-// app.js (Complet, intégrant FocusView)
+// app.js (Intégrant FocusTimerView)
 
 // --- IMPORTS ---
 import { initSobrietyTracker } from './sobrietyTracker.js';
@@ -13,7 +13,7 @@ import { initVictoriesView } from './victoriesView.js';
 import { initTestimonialsView } from './testimonialsView.js';
 import { initSettingsView } from './settingsView.js';
 import { initCravingsView } from './cravingsView.js';
-import { initFocusView } from './focusView.js'; // Assurez-vous que cette ligne est là
+import { initFocusTimerView } from './focusTimerView.js'; // *** AJOUT IMPORT FOCUSTIMERVIEW ***
 
 // --- Constantes et Variables Globales ---
 const ZEN_MODE_KEY = 'claireAppZenModeEnabled';
@@ -36,57 +36,78 @@ function registerServiceWorker() {
                 setupServiceWorkerUpdateHandling(registration);
             })
             .catch(error => { console.error('Échec enregistrement SW:', error); });
+
         let refreshing;
-        navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; console.log("Nouveau SW activé. Rechargement..."); window.location.reload(); refreshing = true; });
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            console.log("Nouveau SW activé. Rechargement...");
+            window.location.reload();
+            refreshing = true;
+        });
     } else { console.log('Service Workers non supportés.'); }
 }
+
 function setupServiceWorkerUpdateHandling(registration) {
-    if (registration.waiting) { console.log("SW en attente."); showUpdateButton(registration); }
+    if (registration.waiting) { console.log("SW en attente trouvé immédiatement."); showUpdateButton(registration); }
     registration.addEventListener('updatefound', () => {
-        console.log("Nouvelle version SW trouvée..."); const newWorker = registration.installing;
-        if (newWorker) { newWorker.addEventListener('statechange', () => { if (newWorker.state === 'installed') { if (navigator.serviceWorker.controller) { console.log('Nouveau contenu prêt.'); showUpdateButton(registration); } else { console.log('Contenu mis en cache.'); } } }); }
+        console.log("Nouvelle version du SW trouvée...");
+        const newWorker = registration.installing;
+        if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) { console.log('Nouveau contenu prêt.'); showUpdateButton(registration); }
+                else if (newWorker.state === 'installed') { console.log('Contenu mis en cache pour utilisation hors ligne.'); }
+            });
+        }
     });
 }
+
 function showUpdateButton(registration) {
-    const oldBtn = document.getElementById('sw-update-button'); if (oldBtn) oldBtn.remove();
-    const btn = document.createElement('button'); btn.id = 'sw-update-button'; btn.textContent = 'MAJ disponible ! Recharger'; btn.className = 'update-available-button';
-    btn.addEventListener('click', () => { if (registration.waiting) { btn.disabled = true; btn.textContent = 'MAJ...'; registration.waiting.postMessage({ type: 'SKIP_WAITING' }); } else { window.location.reload(); } });
-    document.body.appendChild(btn);
+    const existingButton = document.getElementById('sw-update-button');
+    if (existingButton) existingButton.remove();
+    const updateButton = document.createElement('button');
+    updateButton.id = 'sw-update-button'; updateButton.textContent = 'Mise à jour disponible ! Recharger'; updateButton.className = 'update-available-button';
+    updateButton.addEventListener('click', () => { if (registration.waiting) { updateButton.disabled = true; updateButton.textContent = 'Mise à jour...'; registration.waiting.postMessage({ type: 'SKIP_WAITING' }); } else { window.location.reload(); } });
+    document.body.appendChild(updateButton);
 }
+
 
 // --- Gestion de l'affichage des vues ---
 function showView(viewId) {
-    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
-    const view = document.getElementById(viewId);
-    if (view) {
-        view.classList.add('active');
+    document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
+    document.querySelectorAll('.nav-button').forEach(button => button.classList.remove('active'));
+    const viewToShow = document.getElementById(viewId);
+    if (viewToShow) {
+        viewToShow.classList.add('active');
         if (viewId === 'progressView') refreshCharts();
         else if (viewId === 'routineView') refreshRoutineView();
         else if (viewId === 'plannerView') refreshPlannerView();
-    } else { console.error(`Vue '${viewId}' introuvable !`); return; }
+    } else { console.error(`Vue avec ID '${viewId}' introuvable !`); return; }
+
     if (viewId !== 'toggleZenModeView') {
-        let btnId;
-        // Cas spéciaux pour les ID de boutons qui ne suivent pas la convention stricte
-        if (viewId === 'settingsView') btnId = 'showSettingsBtn';
-        else if (viewId === 'focusView') btnId = 'showFocusBtn'; // Assurez-vous que l'ID HTML est showFocusBtn
-        else if (viewId === 'cravingsView') btnId = 'showCravingsBtn';
-        else { const base = viewId.replace('View', ''); btnId = `show${base.charAt(0).toUpperCase() + base.slice(1)}Btn`; }
-        const activeBtn = document.getElementById(btnId);
-        if (activeBtn) activeBtn.classList.add('active');
-        else if (btnId !== 'showToggleZenModeBtn') console.warn(`Bouton nav '${btnId}' introuvable pour vue '${viewId}'.`);
+         let buttonId;
+         // Cas spécial pour Settings et FocusTimer qui ont des boutons sans "show" dans leur ID HTML (juste emoji)
+         if (viewId === 'settingsView') { buttonId = 'showSettingsBtn'; }
+         else if (viewId === 'focusTimerView') { buttonId = 'showFocusTimerBtn'; } // Bouton pour Focus
+         else { const baseName = viewId.replace('View', ''); buttonId = `show${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Btn`; }
+
+        const buttonToActivate = document.getElementById(buttonId);
+        if (buttonToActivate) { buttonToActivate.classList.add('active'); }
+        else { if (buttonId !== 'showToggleZenModeBtn') { console.warn(`Bouton navigation '${buttonId}' introuvable pour vue '${viewId}'.`); } }
     }
     window.scrollTo(0, 0);
 }
-window.showView = showView; // Exposer globalement
+window.showView = showView; // Rendre accessible globalement
 
-// --- Initialisation des modules ---
+
+// --- Initialisation des modules de l'application ---
 function initializeApp() {
     console.log("DOM Chargé. Initialisation application Clair·e...");
+
     zenModeButton = document.getElementById('toggleZenModeBtn');
-    if (zenModeButton) { const state = isZenModeEnabled(); setZenMode(state); zenModeButton.addEventListener('click', toggleZenMode); }
+    if (zenModeButton) { const initialZenState = isZenModeEnabled(); setZenMode(initialZenState); zenModeButton.addEventListener('click', toggleZenMode); }
     else { console.warn("Bouton 'toggleZenModeBtn' introuvable."); }
 
+    // *** AJOUT DE focusTimerView À LA LISTE ***
     const views = [
         { id: 'sobrietyView', initFn: initSobrietyTracker }, { id: 'journalView', initFn: initJournal },
         { id: 'moodTrackerView', initFn: initMoodTracker }, { id: 'progressView', initFn: initProgressView },
@@ -94,24 +115,32 @@ function initializeApp() {
         { id: 'plannerView', initFn: initPlannerView }, { id: 'testimonialsView', initFn: initTestimonialsView },
         { id: 'victoriesView', initFn: initVictoriesView }, { id: 'sosView', initFn: initSosView },
         { id: 'settingsView', initFn: initSettingsView }, { id: 'cravingsView', initFn: initCravingsView },
-        { id: 'focusView', initFn: initFocusView } // Vue Focus ajoutée
+        { id: 'focusTimerView', initFn: initFocusTimerView } // <<<< NOUVELLE VUE ICI
     ];
+
     views.forEach(view => {
         const container = document.getElementById(view.id);
         if (container && typeof view.initFn === 'function') {
-            try { const res = view.initFn(container); if (res instanceof Promise) res.catch(err => console.error(`Err async init ${view.id}:`, err)); }
-            catch (error) { console.error(`Err init vue ${view.id}:`, error); }
+            try { const result = view.initFn(container); if (result instanceof Promise) { result.catch(err => console.error(`Erreur async init vue ${view.id}:`, err)); } }
+            catch (error) { console.error(`Erreur init vue ${view.id}:`, error); }
         } else if (!container) { console.error(`Conteneur '${view.id}' introuvable.`); }
     });
 
-    const navButtons = [ 'Sobriety', 'Journal', 'MoodTracker', 'Progress', 'Exercises', 'Routine', 'Planner', 'Testimonials', 'Victories', 'Sos', 'Settings', 'Cravings', 'Focus' ]; // 'Focus' ajouté
-    navButtons.forEach(name => {
-        const btnId = `show${name}Btn`; const btn = document.getElementById(btnId);
-        const viewId = `${name.charAt(0).toLowerCase() + name.slice(1)}View`;
-        if (btn) { btn.addEventListener('click', () => showView(viewId)); }
-        else if (btnId !== 'showToggleZenModeBtn') console.warn(`Bouton nav '${btnId}' introuvable.`);
+    // *** AJOUT DE 'FocusTimer' À LA LISTE DES BOUTONS ***
+    const navButtons = [
+        'Sobriety', 'Journal', 'MoodTracker', 'Progress', 'Exercises', 'Routine',
+        'Planner', 'Testimonials', 'Victories', 'Sos', 'Settings', 'Cravings',
+        'FocusTimer' // <<<< NOUVEAU NOM ICI (correspond à l'ID du bouton: showFocusTimerBtn)
+    ];
+    navButtons.forEach(viewName => {
+        const buttonId = `show${viewName}Btn`;
+        const button = document.getElementById(buttonId);
+        const viewId = `${viewName.charAt(0).toLowerCase() + viewName.slice(1)}View`;
+        if (button) { button.addEventListener('click', () => showView(viewId)); }
+        else { if (buttonId !== 'showToggleZenModeBtn') { console.warn(`Bouton navigation '${buttonId}' introuvable.`); } }
     });
-    if (!document.querySelector('.view-section.active')) showView('sobrietyView');
+
+    if (!document.querySelector('.view-section.active')) { showView('sobrietyView'); }
 }
 
 // --- Lancement ---
