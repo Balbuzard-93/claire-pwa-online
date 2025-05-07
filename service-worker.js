@@ -1,14 +1,14 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v39'; // <<<< VERSION INCRÉMENTÉE
+const CACHE_NAME = 'claire-static-cache-v40'; // <<<< VERSION INCRÉMENTÉE
 
-// Assurez-vous que tous les fichiers, y compris focusView.js, sont listés
+// Liste à jour
 const APP_SHELL_URLS = [
     '/',
     '/index.html',
     '/style.css',
-    '/app.js',               // Modifié
-    '/storageUtils.js',
+    '/app.js',
+    '/storageUtils.js',       // Modifié
     '/sobrietyTracker.js',
     '/journal.js',
     '/moodTracker.js',
@@ -22,7 +22,7 @@ const APP_SHELL_URLS = [
     '/testimonialsView.js',
     '/settingsView.js',
     '/cravingsView.js',
-    '/focusView.js',         // Assurez-vous qu'il est là
+    '/focusView.js',
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png'
@@ -42,7 +42,7 @@ self.addEventListener('install', event => {
       } catch (error) {
         console.error('Service Worker: Échec de la mise en cache addAll:', error);
         console.error('URLs tentées:', APP_SHELL_URLS);
-         try { const dC=await caches.open(CACHE_NAME+'-debug-failed'); for(const u of APP_SHELL_URLS){try{await dC.add(new Request(u,{cache:'reload'}));}catch(aE){console.error(`SW Debug: ÉCHEC ${u}`,aE);}} } catch(e){}
+         try { const dC=await caches.open(CACHE_NAME+'-debug'); for(const u of APP_SHELL_URLS){try{await dC.add(new Request(u,{cache:'reload'}));}catch(aE){console.error(`SW Debug: ÉCHEC ${u}`,aE);}} } catch(e){}
       }
     })()
   );
