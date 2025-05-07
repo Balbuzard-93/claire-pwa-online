@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = 'claire-static-cache-v47'; // <<<< VERSION INCRÉMENTÉE
+const CACHE_NAME = 'claire-static-cache-v4'; // <<<< VERSION INCRÉMENTÉE
 
 const APP_SHELL_URLS = [
     '/', '/index.html', '/style.css', '/app.js',
