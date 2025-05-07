@@ -13,6 +13,7 @@ import { initVictoriesView } from './victoriesView.js';
 import { initTestimonialsView } from './testimonialsView.js';
 import { initSettingsView } from './settingsView.js';
 import { initCravingsView } from './cravingsView.js'; // *** AJOUT IMPORT CRAVINGSVIEW ***
+import { initFocusView } from './focusView.js';
 
 // --- Constantes et Variables Globales ---
 const ZEN_MODE_KEY = 'claireAppZenModeEnabled';
@@ -157,6 +158,7 @@ function initializeApp() {
         { id: 'sosView', initFn: initSosView },
         { id: 'settingsView', initFn: initSettingsView },
         { id: 'cravingsView', initFn: initCravingsView } // <<<< NOUVELLE VUE ICI
+        { id: 'focusView', initFn: initFocusView }
     ];
 
     views.forEach(view => {
@@ -177,7 +179,7 @@ function initializeApp() {
     const navButtons = [
         'Sobriety', 'Journal', 'MoodTracker', 'Progress', 'Exercises',
         'Routine', 'Planner', 'Testimonials', 'Victories', 'Sos',
-        'Settings', 'Cravings' // <<<< NOUVEAU NOM ICI
+        'Settings', 'Cravings', 'Focus' // <<<< NOUVEAU NOM ICI
     ];
     navButtons.forEach(viewName => {
         const buttonId = `show${viewName}Btn`;
