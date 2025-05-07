@@ -1,4 +1,4 @@
-// app.js (Imports vérifiés et logique de menu)
+// app.js (Focus Menu Accessibilité Corrigé)
 
 // --- IMPORTS ---
 import { initConsumptionView } from './consumptionView.js';
@@ -16,12 +16,12 @@ import { initTestimonialsView } from './testimonialsView.js';
 import { initSettingsView } from './settingsView.js';
 import { initCravingsView } from './cravingsView.js';
 import { initFocusView } from './focusView.js';
-// Pas besoin d'importer getPersonalValues ici si activityLogView l'importe déjà
+// import { getPersonalValues } from './storageUtils.js'; // Pas directement utilisé dans app.js
 
 // --- Variables Globales ---
 let serviceWorkerRegistration = null;
 
-// --- Fonctions Mode Zen (ONT ÉTÉ SUPPRIMÉES) ---
+// --- Fonctions Mode Zen (SUPPRIMÉES) ---
 
 // --- Enregistrement et Gestion du Service Worker ---
 function registerServiceWorker() {
@@ -79,34 +79,66 @@ export function showView(viewId) {
     } else { console.error(`Vue ID '${viewId}' introuvable !`); showView('consumptionView'); return; }
     window.scrollTo(0, 0);
 }
-window.showView = showView;
+window.showView = showView; // Global pour cravingsView -> sosView
 
 // --- Initialisation de l'application ---
 function initializeApp() {
     console.log("DOM Chargé. Initialisation Clair·e...");
-    const menuToggleBtn = document.getElementById('menuToggleBtn'); const mainMenu = document.getElementById('mainMenu');
+    const menuToggleBtn = document.getElementById('menuToggleBtn');
+    const mainMenu = document.getElementById('mainMenu');
+
     if (menuToggleBtn && mainMenu) {
-        menuToggleBtn.addEventListener('click', () => { const isExp = menuToggleBtn.getAttribute('aria-expanded')==='true'; menuToggleBtn.setAttribute('aria-expanded',!isExp); mainMenu.classList.toggle('open'); mainMenu.setAttribute('aria-hidden',String(isExp)); if(!isExp && mainMenu.querySelector('.menu-item')) mainMenu.querySelector('.menu-item').focus(); });
-        mainMenu.querySelectorAll('.menu-item').forEach(item => { item.addEventListener('click', () => { const viewId = item.dataset.viewid; if (viewId) { showView(viewId); menuToggleBtn.setAttribute('aria-expanded','false'); mainMenu.classList.remove('open'); mainMenu.setAttribute('aria-hidden','true'); } }); });
-        document.addEventListener('click', (e) => { if (mainMenu.classList.contains('open') && !mainMenu.contains(e.target) && !menuToggleBtn.contains(e.target)) { menuToggleBtn.setAttribute('aria-expanded','false'); mainMenu.classList.remove('open'); mainMenu.setAttribute('aria-hidden','true'); } });
-    } else { console.warn("Menu burger/principal introuvable."); }
+        menuToggleBtn.addEventListener('click', () => {
+            const isExpanded = menuToggleBtn.getAttribute('aria-expanded') === 'true';
+            menuToggleBtn.setAttribute('aria-expanded', String(!isExpanded));
+            mainMenu.classList.toggle('open');
+            mainMenu.setAttribute('aria-hidden', String(isExpanded));
+            if (!isExpanded && mainMenu.querySelector('.menu-item')) {
+                // Optionnel : focus sur le premier item quand le menu s'ouvre
+                // mainMenu.querySelector('.menu-item').focus();
+            } else if (isExpanded) {
+                // Si on vient de fermer le menu (isExpanded était true), redonner le focus au bouton burger
+                menuToggleBtn.focus();
+            }
+        });
+
+        mainMenu.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const viewId = item.dataset.viewid;
+                if (viewId) {
+                    showView(viewId);
+                    menuToggleBtn.setAttribute('aria-expanded', 'false');
+                    mainMenu.classList.remove('open');
+                    mainMenu.setAttribute('aria-hidden', 'true');
+                    // *** DÉPLACER LE FOCUS APRÈS SÉLECTION ET FERMETURE ***
+                    menuToggleBtn.focus();
+                }
+            });
+        });
+
+        document.addEventListener('click', (event) => {
+            if (mainMenu.classList.contains('open') && !mainMenu.contains(event.target) && !menuToggleBtn.contains(event.target)) {
+                menuToggleBtn.setAttribute('aria-expanded', 'false');
+                mainMenu.classList.remove('open');
+                mainMenu.setAttribute('aria-hidden', 'true');
+                // Optionnel: redonner le focus au bouton burger ici aussi si pertinent pour UX
+                // menuToggleBtn.focus();
+            }
+        });
+    } else { console.warn("Menu burger ou menu principal introuvable."); }
 
     const views = [
-        { id: 'consumptionView', initFn: initConsumptionView },
-        { id: 'activityLogView', initFn: initActivityLogView },
-        { id: 'journalView', initFn: initJournal },
-        { id: 'moodTrackerView', initFn: initMoodTracker },
-        { id: 'progressView', initFn: initProgressView },
-        { id: 'exercisesView', initFn: initExercisesView },
-        { id: 'thoughtRecordView', initFn: initThoughtRecordView },
-        { id: 'routineView', initFn: initRoutineView }, { id: 'plannerView', initFn: initPlannerView },
-        { id: 'cravingsView', initFn: initCravingsView }, { id: 'focusView', initFn: initFocusView },
-        { id: 'testimonialsView', initFn: initTestimonialsView }, { id: 'victoriesView', initFn: initVictoriesView },
-        { id: 'settingsView', initFn: initSettingsView }, { id: 'sosView', initFn: initSosView }
+        { id: 'consumptionView', initFn: initConsumptionView }, { id: 'activityLogView', initFn: initActivityLogView },
+        { id: 'journalView', initFn: initJournal }, { id: 'moodTrackerView', initFn: initMoodTracker },
+        { id: 'progressView', initFn: initProgressView }, { id: 'exercisesView', initFn: initExercisesView },
+        { id: 'thoughtRecordView', initFn: initThoughtRecordView }, { id: 'routineView', initFn: initRoutineView },
+        { id: 'plannerView', initFn: initPlannerView }, { id: 'cravingsView', initFn: initCravingsView },
+        { id: 'focusView', initFn: initFocusView }, { id: 'testimonialsView', initFn: initTestimonialsView },
+        { id: 'victoriesView', initFn: initVictoriesView }, { id: 'settingsView', initFn: initSettingsView },
+        { id: 'sosView', initFn: initSosView }
     ];
     views.forEach(view => { const c = document.getElementById(view.id); if (c && typeof view.initFn === 'function') { try { const r = view.initFn(c); if (r instanceof Promise) { r.catch(err => console.error(`Err async init ${view.id}:`, err)); } } catch (e) { console.error(`Err init ${view.id}:`, e); } } else if (!c) { console.error(`Conteneur '${view.id}' introuvable.`); } });
 
-    // Afficher la vue par défaut
     const defaultViewId = 'consumptionView';
     if (!document.querySelector('.view-section.active')) { showView(defaultViewId); }
     else { const activeView = document.querySelector('.view-section.active'); if(activeView){ const menuItem = document.querySelector(`#mainMenu .menu-item[data-viewid="${activeView.id}"]`); if (menuItem) menuItem.classList.add('active-view'); } }
