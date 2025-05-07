@@ -1,86 +1,239 @@
-// plannerView.js (Version Corrigée v4 - Fix 'catch' et 'deleteTask' if)
+// plannerView.js (Avec gestion des sous-tâches)
 import { getPlannerForDate, savePlannerForDate, getCurrentDateString } from './storageUtils.js';
 
 let currentPlannerData = { tasks: [] };
 let selectedEnergy = null;
-// let todayString = ''; // Pas de globale
 const CONTENT_WRAPPER_ID = 'planner-content-wrapper';
 
-/** Met à jour statut tâche */
-async function updateTaskCompletedStatus(taskId, isCompleted, dateStr) {
+/** Met à jour l'état de complétion d'une tâche ou sous-tâche. */
+async function updateTaskCompletedStatus(taskId, isCompleted, dateStr, subTaskId = null) {
     if (!currentPlannerData || !Array.isArray(currentPlannerData.tasks) || !dateStr) return;
-    const taskIndex = currentPlannerData.tasks.findIndex(task => task.id === taskId);
+
+    const taskIndex = currentPlannerData.tasks.findIndex(t => t.id === taskId);
     if (taskIndex === -1) return;
-    const originalState = currentPlannerData.tasks[taskIndex].completed;
-    currentPlannerData.tasks[taskIndex].completed = isCompleted;
-    const taskElement = document.querySelector(`#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${taskId}"]`);
-    if (taskElement) taskElement.classList.toggle('task-completed', isCompleted);
+
+    let itemToUpdate;
+    let elementSelector;
+
+    if (subTaskId !== null) { // C'est une sous-tâche
+        if (!Array.isArray(currentPlannerData.tasks[taskIndex].subTasks)) {
+            currentPlannerData.tasks[taskIndex].subTasks = []; // S'assurer qu'elle existe
+        }
+        const subTaskIndex = currentPlannerData.tasks[taskIndex].subTasks.findIndex(st => st.id === subTaskId);
+        if (subTaskIndex === -1) return;
+        itemToUpdate = currentPlannerData.tasks[taskIndex].subTasks[subTaskIndex];
+        elementSelector = `#${CONTENT_WRAPPER_ID} .sub-task-item[data-subtask-id="${subTaskId}"]`;
+    } else { // C'est une tâche principale
+        itemToUpdate = currentPlannerData.tasks[taskIndex];
+        elementSelector = `#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${taskId}"]`;
+    }
+
+    const originalState = itemToUpdate.completed;
+    itemToUpdate.completed = isCompleted;
+
+    const taskElement = document.querySelector(elementSelector);
+    if (taskElement) {
+         taskElement.classList.toggle('task-completed', isCompleted);
+         const cb = taskElement.querySelector('.task-checkbox'); if(cb) cb.checked = isCompleted;
+    }
+
+    // Optionnel: Si toutes les sous-tâches sont cochées, cocher la tâche principale
+    if (subTaskId !== null && isCompleted) {
+        const parentTask = currentPlannerData.tasks[taskIndex];
+        const allSubTasksCompleted = parentTask.subTasks.every(st => st.completed);
+        if (allSubTasksCompleted && !parentTask.completed) {
+            parentTask.completed = true;
+            const parentElement = document.querySelector(`#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${taskId}"]`);
+            if (parentElement) {
+                 parentElement.classList.add('task-completed');
+                 const parentCb = parentElement.querySelector(`#planner-task-${taskId}.task-checkbox`);
+                 if(parentCb) parentCb.checked = true;
+            }
+        }
+    }
+    // Optionnel: Si une sous-tâche est décochée, décocher la tâche principale
+    if (subTaskId !== null && !isCompleted) {
+        const parentTask = currentPlannerData.tasks[taskIndex];
+        if (parentTask.completed) {
+             parentTask.completed = false;
+             const parentElement = document.querySelector(`#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${taskId}"]`);
+             if (parentElement) {
+                  parentElement.classList.remove('task-completed');
+                  const parentCb = parentElement.querySelector(`#planner-task-${taskId}.task-checkbox`);
+                  if(parentCb) parentCb.checked = false;
+             }
+        }
+    }
+
+
     try { await savePlannerForDate(dateStr, currentPlannerData); }
-    catch(error) { console.error("Err save plan status:", error); alert("Err sauvegarde tâche."); if(taskElement){ taskElement.classList.toggle('task-completed', originalState); const cb=taskElement.querySelector('.task-checkbox'); if(cb) cb.checked=originalState;} }
+    catch(error) { console.error("Err save plan status:", error); alert("Err sauvegarde tâche."); itemToUpdate.completed = originalState; if(taskElement){ taskElement.classList.toggle('task-completed', originalState); const cb=taskElement.querySelector('.task-checkbox'); if(cb) cb.checked=originalState;} }
 }
 
-/** Supprime tâche */
-async function deleteTask(taskId, dateStr) {
+/** Supprime une tâche principale ou une sous-tâche. */
+async function deleteTask(taskId, dateStr, subTaskId = null) {
     if (!currentPlannerData || !Array.isArray(currentPlannerData.tasks) || !dateStr) return;
-    const originalTasks = [...currentPlannerData.tasks];
-    const taskToDelete = currentPlannerData.tasks.find(task => task.id === taskId);
+    const originalTasks = JSON.parse(JSON.stringify(currentPlannerData.tasks)); // Copie profonde
 
-    // Optimistic UI update
-    const taskElement = document.querySelector(`#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${taskId}"]`);
+    let elementToRemoveSelector;
+
+    if (subTaskId !== null) {
+        const taskIndex = currentPlannerData.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1 && Array.isArray(currentPlannerData.tasks[taskIndex].subTasks)) {
+            currentPlannerData.tasks[taskIndex].subTasks = currentPlannerData.tasks[taskIndex].subTasks.filter(st => st.id !== subTaskId);
+            elementToRemoveSelector = `#${CONTENT_WRAPPER_ID} .sub-task-item[data-subtask-id="${subTaskId}"]`;
+        }
+    } else {
+        currentPlannerData.tasks = currentPlannerData.tasks.filter(task => task.id !== taskId);
+        elementToRemoveSelector = `#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${taskId}"]`;
+    }
+
+    const taskElement = document.querySelector(elementToRemoveSelector);
     if (taskElement) taskElement.remove();
 
-    // Update local data state
-    currentPlannerData.tasks = currentPlannerData.tasks.filter(task => task.id !== taskId);
-
-    // Try saving
     try {
-        await savePlannerForDate(dateStr, currentPlannerData); // Sauvegarder données filtrées
-
-        // Mettre à jour message si liste vide
-        const taskListUl = document.getElementById('plannerTaskList'); // Cible la liste
-        if (taskListUl && currentPlannerData.tasks.length === 0) { // <<< LIGNE CORRIGÉE (&& logique)
-            taskListUl.innerHTML = '<p class="no-tasks-message">Aucune tâche planifiée.</p>';
+        await savePlannerForDate(dateStr, currentPlannerData);
+        const ul=document.getElementById('plannerTaskList');
+        if(ul && currentPlannerData.tasks.length===0 && subTaskId === null) { // Afficher message si toutes les tâches principales sont supprimées
+            ul.innerHTML='<p class="no-tasks-message">Aucune tâche.</p>';
         }
-    } catch (error) { // <<< BLOC CATCH PRÉSENT
-        console.error("Erreur sauvegarde plan après suppression:", error);
-        alert("Erreur lors de la suppression de la tâche.");
-        // Rollback Data
-        currentPlannerData.tasks = originalTasks;
-        // Rollback UI (le plus simple est de re-rendre)
-        const wrapper = document.getElementById(CONTENT_WRAPPER_ID);
-        if (wrapper) {
-            await renderPlannerContent(wrapper); // Re-render toute la liste
-        } else {
-            console.error("Impossible de rafraîchir l'UI après échec suppression.");
-        }
+    } catch(error) {
+        console.error("Err save plan suppression:", error); alert("Err suppression tâche.");
+        currentPlannerData.tasks=originalTasks; // Rollback data
+        await refreshPlannerView(); // Re-render pour refléter rollback
     }
 }
 
-/** Ajoute tâche */
+/** Ajoute une nouvelle tâche principale. */
 async function addTask(dateStr) {
     const inputElement = document.getElementById('newTaskInput'); if(!inputElement) return;
     const text = inputElement.value.trim(); if (!text) { alert("Entrez le texte."); return; }
-    const newTask = { id: Date.now(), text: text, energy: selectedEnergy, completed: false };
+    const newTask = { id: Date.now(), text: text, energy: selectedEnergy, completed: false, subTasks: [] }; // Ajouter tableau subTasks vide
     if (!Array.isArray(currentPlannerData.tasks)) { currentPlannerData.tasks = []; }
-    const originalTasks = [...currentPlannerData.tasks];
     currentPlannerData.tasks.push(newTask);
     try {
         await savePlannerForDate(dateStr, currentPlannerData);
         inputElement.value = ''; selectedEnergy = null; document.querySelectorAll('.energy-selector button.selected').forEach(b=>b.classList.remove('selected')); const addBtn=document.getElementById('addTaskBtn'); if(addBtn) addBtn.disabled=true;
         const ul=document.getElementById('plannerTaskList'); if(ul){ const noMsg=ul.querySelector('.no-tasks-message'); if(noMsg) noMsg.remove(); appendTaskToList(ul, newTask, dateStr); } else { refreshPlannerView(); }
-    } catch (error) { console.error("Err save tâche plan:", error); alert("Err enregistrement tâche."); currentPlannerData.tasks=originalTasks; }
+    } catch (error) { console.error("Err save tâche plan:", error); alert("Err enregistrement tâche."); currentPlannerData.tasks.pop(); }
 }
 
-/** Ajoute LI à UL */
-function appendTaskToList(listUl, task, dateStr) {
-    if (!listUl || !task || listUl.querySelector(`[data-task-id="${task.id}"]`)) return;
-    const li = document.createElement('li'); li.className = `planner-task-item ${task.completed ? 'task-completed' : ''}`; li.dataset.taskId = task.id;
-    let eInd = ''; const eMap={1:'⚡',2:'⚡⚡',3:'⚡⚡⚡'}; const eTxt={1:'Basse',2:'Moyenne',3:'Haute'}; if(task.energy!==null && eMap[task.energy]){ eInd = `<span class="energy-indicator ${task.energy===1?'low':task.energy===2?'medium':'high'}" title="${eTxt[task.energy]} énergie">${eMap[task.energy]}</span>`; }
+/** Ajoute une sous-tâche à une tâche principale. */
+async function addSubTask(parentTaskId, dateStr) {
+    const subTaskText = prompt("Entrez le texte de la sous-tâche :");
+    if (!subTaskText || subTaskText.trim() === '') return;
+
+    const parentTaskIndex = currentPlannerData.tasks.findIndex(t => t.id === parentTaskId);
+    if (parentTaskIndex === -1) return;
+
+    if (!Array.isArray(currentPlannerData.tasks[parentTaskIndex].subTasks)) {
+        currentPlannerData.tasks[parentTaskIndex].subTasks = [];
+    }
+    const newSubTask = { id: Date.now(), text: subTaskText.trim(), completed: false };
+    currentPlannerData.tasks[parentTaskIndex].subTasks.push(newSubTask);
+
+    try {
+        await savePlannerForDate(dateStr, currentPlannerData);
+        // Re-rendre la tâche parente spécifique pour afficher la nouvelle sous-tâche
+        const parentTaskElement = document.querySelector(`#${CONTENT_WRAPPER_ID} .planner-task-item[data-task-id="${parentTaskId}"]`);
+        const parentTaskListUl = document.getElementById('plannerTaskList'); // La liste principale
+        if (parentTaskElement && parentTaskListUl) {
+             const tempLi = document.createElement('li'); // Conteneur temporaire
+             appendTaskToList(tempLi, currentPlannerData.tasks[parentTaskIndex], dateStr); // Générer le LI complet de la tâche parente
+             parentTaskListUl.replaceChild(tempLi.firstChild, parentTaskElement); // Remplacer l'ancien LI par le nouveau
+        } else {
+             refreshPlannerView(); // Fallback: re-rendre tout
+        }
+    } catch (error) {
+        console.error("Erreur sauvegarde sous-tâche:", error);
+        alert("Erreur enregistrement sous-tâche.");
+        // Rollback
+        currentPlannerData.tasks[parentTaskIndex].subTasks.pop();
+    }
+}
+
+
+/** Ajoute un élément LI (tâche ou sous-tâche) à la liste UL. */
+function appendTaskToList(listUl, task, dateStr, isSubTask = false) {
+    if (!listUl || !task ) return;
+    if (listUl.querySelector(`[data-${isSubTask ? 'subtask' : 'task'}-id="${task.id}"]`)) return;
+
+    const li = document.createElement('li');
+    li.className = isSubTask ? `sub-task-item ${task.completed ? 'task-completed' : ''}` : `planner-task-item ${task.completed ? 'task-completed' : ''}`;
+    li.dataset[isSubTask ? 'subtaskId' : 'taskId'] = task.id;
+    if (isSubTask && task.parentId) li.dataset.parentId = task.parentId; // Stocker l'ID du parent pour une sous-tâche
+
+    let energyInd = '';
+    if (!isSubTask && task.energy !== null) { // Indicateur d'énergie seulement pour tâches principales
+         const eMap={1:'⚡',2:'⚡⚡',3:'⚡⚡⚡'}; const eTxt={1:'Basse',2:'Moyenne',3:'Haute'};
+         if(eMap[task.energy]){ energyInd = `<span class="energy-indicator ${task.energy===1?'low':task.energy===2?'medium':'high'}" title="${eTxt[task.energy]} énergie">${eMap[task.energy]}</span>`; }
+    }
     const txt = document.createElement('span'); txt.className = 'task-text'; txt.textContent = task.text || '';
-    li.innerHTML = `<input type="checkbox" id="planner-task-${task.id}" class="task-checkbox" ${task.completed?'checked':''}> <label for="planner-task-${task.id}" class="visually-hidden">Marquer "${txt.textContent}"</label> ${txt.outerHTML} ${eInd} <button class="delete-task-btn button-delete" title="Supprimer" aria-label="Supprimer: ${txt.textContent}">🗑️</button>`;
-    const cb = li.querySelector('.task-checkbox'); const del = li.querySelector('.delete-task-btn');
-    if(cb) { cb.addEventListener('change', (e) => updateTaskCompletedStatus(task.id, e.target.checked, dateStr)); }
-    if(del) { del.addEventListener('click', () => { if(confirm(`Supprimer "${txt.textContent}" ?`)) deleteTask(task.id, dateStr); }); }
+    const checkboxId = `${isSubTask ? 'sub' : ''}planner-task-${task.id}`;
+
+    let subTaskHtml = '';
+    if (!isSubTask && Array.isArray(task.subTasks) && task.subTasks.length > 0) {
+        subTaskHtml += '<ul class="sub-task-list">';
+        task.subTasks.forEach(st => {
+            const subLabel = document.createElement('label'); subLabel.htmlFor = `subplanner-task-${st.id}`; subLabel.className = 'visually-hidden'; subLabel.textContent = `Marquer "${st.text}"`;
+            const subTxt = document.createElement('span'); subTxt.className = 'task-text'; subTxt.textContent = st.text || '';
+            subTaskHtml += `<li class="sub-task-item ${st.completed ? 'task-completed' : ''}" data-subtask-id="${st.id}" data-parent-id="${task.id}">
+                                <input type="checkbox" id="subplanner-task-${st.id}" class="task-checkbox" ${st.completed?'checked':''}>
+                                ${subLabel.outerHTML}
+                                ${subTxt.outerHTML}
+                                <button class="delete-task-btn button-delete" title="Supprimer sous-tâche" aria-label="Supprimer sous-tâche: ${st.text||'sous-tâche'}">🗑️</button>
+                            </li>`;
+        });
+        subTaskHtml += '</ul>';
+    }
+
+    let addSubTaskButtonHtml = '';
+    if (!isSubTask) { // Bouton ajouter sous-tâche seulement pour les tâches principales
+        addSubTaskButtonHtml = `<button class="add-subtask-btn button-secondary" title="Ajouter une sous-tâche" aria-label="Ajouter une sous-tâche à ${task.text || 'tâche'}">+</button>`;
+    }
+
+
+    li.innerHTML = `
+        <div class="task-main-line">
+            <input type="checkbox" id="${checkboxId}" class="task-checkbox" ${task.completed?'checked':''}>
+            <label for="${checkboxId}" class="visually-hidden">Marquer "${txt.textContent}"</label>
+            ${txt.outerHTML}
+            ${energyInd}
+            ${addSubTaskButtonHtml}
+            <button class="delete-task-btn button-delete" title="Supprimer" aria-label="Supprimer: ${txt.textContent}">🗑️</button>
+        </div>
+        ${subTaskHtml}
+    `;
+
+    const cb = li.querySelector(`#${checkboxId}.task-checkbox`);
+    const del = li.querySelector('.delete-task-btn'); // Bouton supprimer tâche principale
+    const addSubBtn = li.querySelector('.add-subtask-btn');
+
+    if(cb) { cb.addEventListener('change', (e) => updateTaskCompletedStatus(task.id, e.target.checked, dateStr, isSubTask ? task.parentId : null)); }
+    if(del) { del.addEventListener('click', () => { if(confirm(`Supprimer "${txt.textContent}" ?`)) deleteTask(task.id, dateStr, isSubTask ? task.parentId : null ); }); }
+    if(addSubBtn) { addSubBtn.addEventListener('click', (e) => { e.stopPropagation(); addSubTask(task.id, dateStr); }); }
+
+    // Ajouter listeners pour les sous-tâches si elles existent (délégation d'événement sur le LI parent)
+    if (!isSubTask && subTaskHtml) {
+        const subTaskList = li.querySelector('.sub-task-list');
+        if(subTaskList) {
+            subTaskList.addEventListener('change', (event) => {
+                 if(event.target.matches('.task-checkbox')) {
+                      const subLi = event.target.closest('.sub-task-item');
+                      const subTaskId = Number.parseInt(subLi?.dataset.subtaskId, 10);
+                      if (!isNaN(subTaskId)) updateTaskCompletedStatus(task.id, event.target.checked, dateStr, subTaskId);
+                 }
+            });
+            subTaskList.addEventListener('click', (event) => {
+                 if(event.target.matches('.delete-task-btn')) {
+                      const subLi = event.target.closest('.sub-task-item');
+                      const subTaskId = Number.parseInt(subLi?.dataset.subtaskId, 10);
+                      const subTaskText = subLi.querySelector('.task-text')?.textContent || 'cette sous-tâche';
+                      if (!isNaN(subTaskId) && confirm(`Supprimer "${subTaskText}" ?`)) deleteTask(task.id, dateStr, subTaskId);
+                 }
+            });
+        }
+    }
     listUl.appendChild(li);
 }
 
@@ -102,9 +255,9 @@ async function renderPlannerContent(contentWrapper) {
             <h3>Mon Plan Doux du ${formattedDate}</h3>
             <div class="planner-add-task">
                  <label for="newTaskInput" class="visually-hidden">Nouvelle tâche:</label>
-                 <input type="text" id="newTaskInput" placeholder="Nouvelle intention..." maxlength="150">
+                 <input type="text" id="newTaskInput" placeholder="Nouvelle intention principale..." maxlength="150">
                  <div class="energy-selector" role="group" aria-labelledby="energy-label-planner"><span id="energy-label-planner" class="visually-hidden">Énergie:</span>Énergie :<button data-energy="1" title="Basse" aria-label="Basse">⚡</button><button data-energy="2" title="Moyenne" aria-label="Moyenne">⚡⚡</button><button data-energy="3" title="Haute" aria-label="Haute">⚡⚡⚡</button><button data-energy="null" title="Effacer" aria-label="Non définie">❓</button></div>
-                 <button id="addTaskBtn" class="button-primary" disabled>Ajouter</button>
+                 <button id="addTaskBtn" class="button-primary" disabled>Ajouter Tâche</button>
             </div>
             <ul id="plannerTaskList"></ul>`;
 
