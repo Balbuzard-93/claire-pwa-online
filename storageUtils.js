@@ -75,6 +75,34 @@ export async function savePlannerForDate(dateString, plannerData) { /* ... */ }
 export async function getVictories() { return getAllData(STORES.VICTORIES); }
 export async function addVictory(victoryData) { /* ... */ }
 export async function deleteVictory(victoryId) { /* ... */ }
+// Planificateur (Vérifier/Commenter pour sous-tâches)
+export async function getPlannerForDate(dateString) {
+    if(!dateString) return null;
+    const data = await operateOnStore(STORES.PLANNER, 'readonly', store => store.get(dateString));
+    // S'assurer que chaque tâche a un tableau subTasks, même vide, si ce n'est pas déjà le cas
+    if (data && Array.isArray(data.tasks)) {
+        data.tasks.forEach(task => {
+            if (!Array.isArray(task.subTasks)) {
+                task.subTasks = []; // Initialiser si manquant
+            }
+        });
+        return data;
+    }
+    return null;
+}
+
+export async function savePlannerForDate(dateString, plannerData) {
+    if(!dateString) throw new Error("Date manquante plan");
+    if (plannerData === null) {
+        return operateOnStore(STORES.PLANNER, 'readwrite', store => store.delete(dateString));
+    } else {
+        // La structure attendue pour plannerData.tasks est maintenant:
+        // [{ id, text, energy, completed, subTasks: [{id, text, completed}, ...] }, ...]
+        if(typeof plannerData!=='object'||!Array.isArray(plannerData.tasks)) throw new Error("Donnée plan invalide");
+        // Valider optionnellement la structure des subTasks ici si besoin
+        return operateOnStore(STORES.PLANNER, 'readwrite', store => store.put({ ...plannerData, date: dateString }));
+    }
+}
 
 // --- Fonction d'Export ---
 export async function getAllAppData() { /* ... (code existant, mais ajouter distractions) ... */
