@@ -120,3 +120,43 @@ export async function getAllAppData() {
     } catch (error) { console.error("Erreur récup IDB pour export:", error); alert("Erreur export données IDB."); }
     return allData;
 }
+// DANS storageUtils.js (Parties pertinentes pour plannerData)
+
+// ... (Constantes et fonctions openDB, operateOnStore, helpers LS, etc. comme précédemment) ...
+
+// Planificateur
+export async function getPlannerForDate(dateString) {
+    if(!dateString) return null;
+    const data = await operateOnStore(STORES.PLANNER, 'readonly', store => store.get(dateString));
+    // S'assurer que si des données existent, elles ont une structure de base tasks:[]
+    if (data && typeof data === 'object' && Array.isArray(data.tasks)) {
+        // Optionnel: Parcourir tasks et s'assurer que subTasks est un tableau si présent
+        data.tasks.forEach(task => {
+            if (task.subTasks && !Array.isArray(task.subTasks)) {
+                task.subTasks = []; // Corriger si subTasks n'est pas un tableau
+            } else if (!task.subTasks) {
+                task.subTasks = []; // Initialiser si absent
+            }
+        });
+        return data;
+    }
+    return null; // Ou retourner { tasks: [] } par défaut si préféré
+}
+
+export async function savePlannerForDate(dateString, plannerData) {
+    if(!dateString) throw new Error("Date manquante pour sauvegarde plan");
+    if (plannerData === null) { // Pour supprimer l'entrée du jour
+        return operateOnStore(STORES.PLANNER, 'readwrite', store => store.delete(dateString));
+    } else {
+        if(typeof plannerData !== 'object' || !Array.isArray(plannerData.tasks)) throw new Error("Donnée plan invalide");
+        // S'assurer que chaque tâche a une propriété subTasks (tableau vide si non défini)
+        plannerData.tasks.forEach(task => {
+            if (!Array.isArray(task.subTasks)) {
+                task.subTasks = [];
+            }
+        });
+        return operateOnStore(STORES.PLANNER, 'readwrite', store => store.put({ ...plannerData, date: dateString }));
+    }
+}
+
+// ... (Le reste de storageUtils.js : Journal, Humeur, Routine, Victoires, Export) ...
