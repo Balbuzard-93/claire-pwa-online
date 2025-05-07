@@ -1,13 +1,12 @@
-// storageUtils.js (Complet - Inclut Valeurs Personnelles et Suivi d'Activités)
+// storageUtils.js (Version avec Fonctions GetAll plus robustes)
 
 // --- Constantes de Clés ---
 const LS_EARNED_BADGES_KEY = 'claireAppEarnedBadges';
 const DISTRACTIONS_LS_KEY = 'claireAppDistractionsList';
-const LS_PERSONAL_VALUES_KEY = 'claireAppPersonalValues'; // Pour les valeurs personnelles
 
 // --- Configuration IndexedDB ---
 const DB_NAME = 'ClaireAppDB';
-const DB_VERSION = 4; // <<<< VERSION MISE À JOUR (pour activity_logs)
+const DB_VERSION = 4; // Maintenir à 4 si la structure des stores n'a pas changé depuis l'ajout de activity_logs
 const STORES = {
     JOURNAL: 'journal_entries',
     MOOD: 'mood_logs',
@@ -16,7 +15,7 @@ const STORES = {
     VICTORIES: 'victories_log',
     THOUGHT_RECORDS: 'thought_records',
     ALCOHOL_LOG: 'alcohol_consumption_log',
-    ACTIVITY_LOGS: 'activity_logs' // <<< NOUVEAU STORE
+    ACTIVITY_LOGS: 'activity_logs'
 };
 
 let dbPromise = null;
@@ -32,24 +31,27 @@ function openDB() {
             request.onupgradeneeded = (event) => {
                 console.log("Upgrade IDB pour version:", event.newVersion, "depuis:", event.oldVersion);
                 const db = event.target.result;
-                // Vérifier/Créer stores existants (pourrait être factorisé)
-                if (event.oldVersion < 1 || !db.objectStoreNames.contains(STORES.JOURNAL)) { const jS=db.createObjectStore(STORES.JOURNAL,{keyPath:'id',autoIncrement:true}); if(!jS.indexNames.contains('timestamp'))jS.createIndex('timestamp','timestamp'); console.log(`OS ${STORES.JOURNAL} créé.`); }
-                if (event.oldVersion < 1 || !db.objectStoreNames.contains(STORES.MOOD)) { db.createObjectStore(STORES.MOOD,{keyPath:'date'}); console.log(`OS ${STORES.MOOD} créé.`); }
-                if (event.oldVersion < 1 || !db.objectStoreNames.contains(STORES.ROUTINE)) { db.createObjectStore(STORES.ROUTINE,{keyPath:'date'}); console.log(`OS ${STORES.ROUTINE} créé.`); }
-                if (event.oldVersion < 1 || !db.objectStoreNames.contains(STORES.PLANNER)) { db.createObjectStore(STORES.PLANNER,{keyPath:'date'}); console.log(`OS ${STORES.PLANNER} créé.`); }
-                if (event.oldVersion < 1 || !db.objectStoreNames.contains(STORES.VICTORIES)) { const vS=db.createObjectStore(STORES.VICTORIES,{keyPath:'id',autoIncrement:true}); if(!vS.indexNames.contains('timestamp'))vS.createIndex('timestamp','timestamp'); console.log(`OS ${STORES.VICTORIES} créé.`); }
-                if (event.oldVersion < 2 || !db.objectStoreNames.contains(STORES.THOUGHT_RECORDS)) { const tS=db.createObjectStore(STORES.THOUGHT_RECORDS,{keyPath:'id',autoIncrement:true}); if(!tS.indexNames.contains('timestamp'))tS.createIndex('timestamp','timestamp'); console.log(`OS ${STORES.THOUGHT_RECORDS} créé.`); }
-                if (event.oldVersion < 3 || !db.objectStoreNames.contains(STORES.ALCOHOL_LOG)) { db.createObjectStore(STORES.ALCOHOL_LOG, { keyPath: 'date' }); console.log(`OS ${STORES.ALCOHOL_LOG} créé.`); }
-
-                // Store pour SUIVI ACTIVITÉS (ajouté à la v4)
-                if (event.oldVersion < 4) {
-                    if (!db.objectStoreNames.contains(STORES.ACTIVITY_LOGS)) {
-                        const activityStore = db.createObjectStore(STORES.ACTIVITY_LOGS, { keyPath: 'id', autoIncrement: true });
-                        activityStore.createIndex('date', 'date');
-                        activityStore.createIndex('timestamp', 'timestamp');
-                        console.log(`OS ${STORES.ACTIVITY_LOGS} créé.`);
+                // Création/Vérification des stores
+                Object.values(STORES).forEach(storeName => {
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        let store;
+                        if ([STORES.JOURNAL, STORES.VICTORIES, STORES.THOUGHT_RECORDS, STORES.ACTIVITY_LOGS].includes(storeName)) {
+                            store = db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+                            if (storeName === STORES.ACTIVITY_LOGS) store.createIndex('date', 'date'); // Index date pour activités
+                            store.createIndex('timestamp', 'timestamp');
+                        } else { // MOOD, ROUTINE, PLANNER, ALCOHOL_LOG use 'date' as key
+                            store = db.createObjectStore(storeName, { keyPath: 'date' });
+                        }
+                        console.log(`OS ${storeName} créé.`);
+                    } else { // Vérifier si des index manquent sur stores existants lors d'une montée de version
+                         if (storeName === STORES.ACTIVITY_LOGS && event.oldVersion < 4) {
+                              const store = event.target.transaction.objectStore(storeName);
+                              if (!store.indexNames.contains('date')) store.createIndex('date', 'date');
+                              if (!store.indexNames.contains('timestamp')) store.createIndex('timestamp', 'timestamp');
+                              console.log(`Index pour ${storeName} vérifiés/créés.`);
+                         }
                     }
-                }
+                });
                 console.log("Mise à niveau IndexedDB terminée.");
             };
             request.onblocked = (e) => { console.warn("Ouverture IDB bloquée.", e); alert("Clair·e MAJ. Fermez autres onglets & rechargez."); reject("Ouverture bloquée"); };
@@ -57,11 +59,30 @@ function openDB() {
     } return dbPromise;
 }
 
-/** Opération générique IDB (inchangée) */
-async function operateOnStore(storeName, mode = 'readonly', operation) { /* ... (code helper précédent) ... */ }
+/** Opération générique IDB */
+async function operateOnStore(storeName, mode = 'readonly', operation) {
+    try {
+        const db = await openDB(); if (!db) throw new Error("DB non ouverte.");
+        if (!db.objectStoreNames.contains(storeName)) {
+            console.warn(`Store '${storeName}' inexistant, tentative réouverture.`);
+            dbPromise = null; const newDb = await openDB();
+            if (!newDb.objectStoreNames.contains(storeName)) throw new Error(`Store '${storeName}' toujours inexistant.`);
+            const transaction = newDb.transaction(storeName, mode); const store = transaction.objectStore(storeName);
+            return new Promise((resolve, reject) => { /* ... (promesse comme avant) ... */ });
+        }
+        const transaction = db.transaction(storeName, mode); const store = transaction.objectStore(storeName);
+        return new Promise((resolve, reject) => {
+            const request = operation(store, transaction); if (!request) { resolve(); return; } if (typeof request.then === 'function') { request.then(resolve).catch(reject); return; }
+            request.onsuccess = (event) => resolve(event.target.result); request.onerror = (event) => reject(`Erreur requête IDB ${storeName}: ${event.target.error?.name}`);
+            if (mode === 'readwrite') { transaction.oncomplete = () => resolve(request.result); transaction.onerror = (event) => reject(`Erreur TX ${storeName} ${mode}: ${event.target.error?.name}`); }
+        });
+    } catch (error) { console.error(`Erreur operateOnStore (${storeName}, ${mode}):`, error); throw error; }
+}
 async function putData(sN, d) { return operateOnStore(sN, 'readwrite', s => s.put(d)); }
 async function getDataByKey(sN, k) { if(k===undefined||k===null||k==='') return undefined; return operateOnStore(sN, 'readonly', s => s.get(k)); }
-async function getAllData(sN) { return operateOnStore(sN, 'readonly', s => s.getAll()); }
+async function getAllData(storeName) { // Fonction helper interne
+    return operateOnStore(storeName, 'readonly', store => store.getAll());
+}
 async function getAllKeys(sN) { return operateOnStore(sN, 'readonly', s => s.getAllKeys()); }
 async function deleteDataByKey(sN, k) { return operateOnStore(sN, 'readwrite', s => s.delete(k)); }
 
@@ -80,49 +101,49 @@ export function getPersonalValues() { const data = loadDataFromLS(LS_PERSONAL_VA
 export function savePersonalValues(valuesArray) { if (!Array.isArray(valuesArray)) return false; const validValues = [...new Set(valuesArray.map(v => typeof v === 'string' ? v.trim() : '').filter(v => v !== ''))]; return saveDataToLS(LS_PERSONAL_VALUES_KEY, validValues); }
 
 // ** INDEXEDDB **
-// Journal, Humeur, Routine, Planificateur, Victoires, Journal des Pensées, Log Alcool (fonctions existantes inchangées)
-export async function getJournalEntries() { return getAllData(STORES.JOURNAL); }
+// Journal
+export async function getJournalEntries() { try { const data = await getAllData(STORES.JOURNAL); return Array.isArray(data) ? data : []; } catch (e) { console.error(`Err getJournalEntries:`, e); return []; } }
 export async function addJournalEntry(entryData) { if(!entryData||typeof entryData!=='object') throw new Error("Donnée journal invalide"); return putData(STORES.JOURNAL, entryData); }
 export async function deleteJournalEntry(entryId) { return deleteDataByKey(STORES.JOURNAL, entryId); }
+// Humeur
 export async function getMoodEntryForDate(dateString) { return getDataByKey(STORES.MOOD, dateString); }
 export async function saveMoodEntry(moodData) { if(!moodData||typeof moodData!=='object'||!moodData.date) throw new Error("Donnée humeur invalide"); return putData(STORES.MOOD, moodData); }
-export async function getAllMoodEntries() { return getAllData(STORES.MOOD); }
+export async function getAllMoodEntries() { try { const data = await getAllData(STORES.MOOD); return Array.isArray(data) ? data : []; } catch (e) { console.error(`Err getAllMoodEntries:`, e); return []; } }
+// Routine
 export async function getRoutineForDate(dateString) { const d = await getDataByKey(STORES.ROUTINE, dateString); return (d && Array.isArray(d.tasks)) ? d : null; }
 export async function saveRoutineForDate(dateString, routineData) { if(!dateString) throw new Error("Date manquante routine"); if (routineData === null) { return deleteDataByKey(STORES.ROUTINE, dateString); } else { if(typeof routineData!=='object'||!Array.isArray(routineData.tasks)) throw new Error("Donnée routine invalide"); return putData(STORES.ROUTINE, { ...routineData, date: dateString }); } }
+// Planificateur
 export async function getPlannerForDate(dateString) { const d = await getDataByKey(STORES.PLANNER, dateString); return (d && Array.isArray(d.tasks)) ? d : null; }
 export async function savePlannerForDate(dateString, plannerData) { if(!dateString) throw new Error("Date manquante plan"); if (plannerData === null) { return deleteDataByKey(STORES.PLANNER, dateString); } else { if(typeof plannerData!=='object'||!Array.isArray(plannerData.tasks)) throw new Error("Donnée plan invalide"); return putData(STORES.PLANNER, { ...plannerData, date: dateString }); } }
-export async function getVictories() { return getAllData(STORES.VICTORIES); }
+// Victoires
+export async function getVictories() { try { const data = await getAllData(STORES.VICTORIES); return Array.isArray(data) ? data : []; } catch (e) { console.error(`Err getVictories:`, e); return []; } }
 export async function addVictory(victoryData) { if(!victoryData||typeof victoryData!=='object'||!victoryData.text) throw new Error("Donnée victoire invalide"); return putData(STORES.VICTORIES, victoryData); }
 export async function deleteVictory(victoryId) { return deleteDataByKey(STORES.VICTORIES, victoryId); }
-export async function getThoughtRecords() { return getAllData(STORES.THOUGHT_RECORDS); }
+// Journal des Pensées
+export async function getThoughtRecords() { try { const data = await getAllData(STORES.THOUGHT_RECORDS); return Array.isArray(data) ? data : []; } catch (e) { console.error(`Err getThoughtRecords:`, e); return []; } }
 export async function addThoughtRecord(recordData) { if (!recordData || typeof recordData !== 'object' || !recordData.timestamp) throw new Error("Donnée enregistrement pensée invalide"); return putData(STORES.THOUGHT_RECORDS, recordData); }
 export async function deleteThoughtRecord(recordId) { return deleteDataByKey(STORES.THOUGHT_RECORDS, recordId); }
+// Suivi Consommation Alcool
 export async function getAlcoholLogForDate(dateString) { if (!dateString) return null; const data = await getDataByKey(STORES.ALCOHOL_LOG, dateString); return (data && typeof data === 'object' && typeof data.totalUnits === 'number' && Array.isArray(data.drinks)) ? data : null; }
 export async function saveAlcoholLogForDate(dateString, logData) { if (!dateString || !logData || typeof logData !== 'object' || typeof logData.totalUnits !== 'number' || !Array.isArray(logData.drinks)) throw new Error("Données log alcool invalides"); const dataToSave = { ...logData, date: dateString }; return putData(STORES.ALCOHOL_LOG, dataToSave); }
-export async function getAllAlcoholLogs() { return getAllData(STORES.ALCOHOL_LOG); }
-
+export async function getAllAlcoholLogs() { try { const data = await getAllData(STORES.ALCOHOL_LOG); return Array.isArray(data) ? data : []; } catch (e) { console.error(`Err getAllAlcoholLogs:`, e); return []; } }
 // Suivi d'Activités
 export async function addActivityLog(activityData) { if (!activityData || typeof activityData!=='object' || !activityData.timestamp || !activityData.date || !activityData.activityText) throw new Error("Données log activité invalides"); if (!Array.isArray(activityData.linkedValues)) activityData.linkedValues = []; return putData(STORES.ACTIVITY_LOGS, activityData); }
 export async function getActivityLogsForDate(dateString) { if (!dateString) return []; const db = await openDB(); const tx = db.transaction(STORES.ACTIVITY_LOGS, 'readonly'); const store = tx.objectStore(STORES.ACTIVITY_LOGS); const index = store.index('date'); const request = index.getAll(dateString); return new Promise((resolve, reject) => { request.onsuccess = () => { const logs = request.result || []; logs.forEach(log => { if (!Array.isArray(log.linkedValues)) log.linkedValues = []; }); resolve(logs); }; request.onerror = (e) => reject(`Err lecture logs act par date: ${e.target.error?.name}`); tx.onerror = (e) => reject(`Err TX logs act par date: ${e.target.error?.name}`); }); }
-export async function getAllActivityLogs() { const allLogs = await getAllData(STORES.ACTIVITY_LOGS); if (Array.isArray(allLogs)) { allLogs.forEach(log => { if (!Array.isArray(log.linkedValues)) log.linkedValues = []; }); } return allLogs || []; }
+export async function getAllActivityLogs() { try { const data = await getAllData(STORES.ACTIVITY_LOGS); if (Array.isArray(data)) { data.forEach(log => { if (!Array.isArray(log.linkedValues)) log.linkedValues = []; }); return data; } return []; } catch (e) { console.error(`Err getAllActivityLogs:`, e); return []; } }
 export async function deleteActivityLog(activityId) { return deleteDataByKey(STORES.ACTIVITY_LOGS, activityId); }
 
 // --- Fonction d'Export ---
 export async function getAllAppData() {
     const allData = { settings: {}, journal: [], mood: [], routines: {}, plans: {}, victories: [], distractions: [], thoughtRecords: [], alcoholLogs: [], activityLogs: [] };
-    try {
-        allData.settings.earnedBadges = getEarnedBadgesFromStorage();
-        allData.distractions = getDistractions();
-        allData.settings.personalValues = getPersonalValues(); // Ajouté
-    } catch(e){ console.error("Erreur lecture LS pour export:", e); }
+    try { allData.settings.earnedBadges = getEarnedBadgesFromStorage(); allData.distractions = getDistractions(); allData.settings.personalValues = getPersonalValues(); } catch(e){ console.error("Erreur lecture LS pour export:", e); }
     try {
         const [journal, mood, victories, routineKeys, plannerKeys, thoughtRecords, alcoholLogs, activityLogs] = await Promise.all([
-            getAllData(STORES.JOURNAL).catch(e=>[]), getAllData(STORES.MOOD).catch(e=>[]), getAllData(STORES.VICTORIES).catch(e=>[]),
-            getAllKeys(STORES.ROUTINE).catch(e=>[]), getAllKeys(STORES.PLANNER).catch(e=>[]),
-            getAllData(STORES.THOUGHT_RECORDS).catch(e=>[]), getAllData(STORES.ALCOHOL_LOG).catch(e=>[]),
-            getAllActivityLogs().catch(e => []) // Ajouté
-        ]);
-        allData.journal = journal; allData.mood = mood; allData.victories = victories; allData.thoughtRecords = thoughtRecords; allData.alcoholLogs = alcoholLogs; allData.activityLogs = activityLogs; // Ajouté
+            getJournalEntries(), getAllMoodEntries(), getVictories(),
+            getAllKeys(STORES.ROUTINE), getAllKeys(STORES.PLANNER),
+            getThoughtRecords(), getAllAlcoholLogs(), getAllActivityLogs()
+        ].map(p => p.catch(e => { console.warn("Erreur partielle export IDB:", e); return []; }))); // Gérer rejets individuels
+        allData.journal = journal; allData.mood = mood; allData.victories = victories; allData.thoughtRecords = thoughtRecords; allData.alcoholLogs = alcoholLogs; allData.activityLogs = activityLogs;
         const routinePromises = routineKeys.map(key => getDataByKey(STORES.ROUTINE, key).catch(e => null));
         const planPromises = plannerKeys.map(key => getDataByKey(STORES.PLANNER, key).catch(e => null));
         const routineResults = await Promise.all(routinePromises); routineResults.forEach(r => { if(r && r.date) allData.routines[r.date] = r; });
