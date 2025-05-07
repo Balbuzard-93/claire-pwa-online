@@ -1,4 +1,4 @@
-// app.js (Vérification navButtons pour duplicata "Planner")
+// app.js (Après suppression Mode Zen ET avec Nouveau Menu Nav)
 
 // --- IMPORTS ---
 import { initSobrietyTracker } from './sobrietyTracker.js';
@@ -13,18 +13,13 @@ import { initVictoriesView } from './victoriesView.js';
 import { initTestimonialsView } from './testimonialsView.js';
 import { initSettingsView } from './settingsView.js';
 import { initCravingsView } from './cravingsView.js';
-import { initFocusTimerView } from './focusTimerView.js';
+import { initFocusView } from './focusView.js'; // Assumer que initFocusView est prêt
 
-// --- Constantes et Variables Globales ---
-const ZEN_MODE_KEY = 'claireAppZenModeEnabled';
-let zenModeButton = null;
+// --- Variables Globales ---
 let serviceWorkerRegistration = null;
+// Plus de variables globales pour le Mode Zen
 
-// --- Fonctions de Gestion du Mode Zen ---
-function isZenModeEnabled() { try { return localStorage.getItem(ZEN_MODE_KEY) === 'true'; } catch { return false; } }
-function updateZenModeButton(isEnabled) { if (!zenModeButton) return; zenModeButton.textContent = isEnabled ? '🧘‍♀️ Normal' : '✨ Zen'; zenModeButton.title = isEnabled ? "Passer en mode d'affichage normal" : "Passer en mode d'affichage Zen (minimaliste)"; }
-function setZenMode(enabled) { try { localStorage.setItem(ZEN_MODE_KEY, enabled ? 'true' : 'false'); document.body.classList.toggle('zen-mode', enabled); updateZenModeButton(enabled); } catch (error) { console.error("Erreur sauvegarde Mode Zen:", error); alert("Impossible de sauvegarder le paramètre du Mode Zen."); } }
-function toggleZenMode() { setZenMode(!isZenModeEnabled()); }
+// --- Fonctions de Gestion du Mode Zen (SUPPRIMÉES) ---
 
 // --- Enregistrement et Gestion du Service Worker ---
 function registerServiceWorker() {
@@ -37,70 +32,104 @@ function registerServiceWorker() {
             })
             .catch(error => { console.error('Échec enregistrement SW:', error); });
         let refreshing;
-        navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; console.log("Nouveau SW activé. Rechargement..."); window.location.reload(); refreshing = true; });
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            console.log("Nouveau SW activé. Rechargement...");
+            window.location.reload();
+            refreshing = true;
+        });
     } else { console.log('Service Workers non supportés.'); }
 }
 function setupServiceWorkerUpdateHandling(registration) {
-    if (registration.waiting) { console.log("SW en attente trouvé immédiatement."); showUpdateButton(registration); }
+    if (registration.waiting) { console.log("SW en attente trouvé."); showUpdateButton(registration); }
     registration.addEventListener('updatefound', () => {
-        console.log("Nouvelle version du SW trouvée...");
+        console.log("Nouvelle version SW trouvée...");
         const newWorker = registration.installing;
         if (newWorker) {
             newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) { console.log('Nouveau contenu prêt.'); showUpdateButton(registration); }
-                else if (newWorker.state === 'installed') { console.log('Contenu mis en cache pour utilisation hors ligne.'); }
+                else if (newWorker.state === 'installed') { console.log('Contenu mis en cache pour hors ligne.'); }
             });
         }
     });
 }
 function showUpdateButton(registration) {
-    const existingButton = document.getElementById('sw-update-button'); if (existingButton) existingButton.remove();
-    const updateButton = document.createElement('button'); updateButton.id = 'sw-update-button'; updateButton.textContent = 'Mise à jour disponible ! Recharger'; updateButton.className = 'update-available-button';
-    updateButton.addEventListener('click', () => { if (registration.waiting) { updateButton.disabled = true; updateButton.textContent = 'Mise à jour...'; registration.waiting.postMessage({ type: 'SKIP_WAITING' }); } else { window.location.reload(); } });
-    document.body.appendChild(updateButton);
+    const oldBtn = document.getElementById('sw-update-button'); if (oldBtn) oldBtn.remove();
+    const btn = document.createElement('button'); btn.id = 'sw-update-button'; btn.textContent = 'Mise à jour ! Recharger'; btn.className = 'update-available-button';
+    btn.addEventListener('click', () => { if (registration.waiting) { btn.disabled = true; btn.textContent = 'MAJ...'; registration.waiting.postMessage({ type: 'SKIP_WAITING' }); } else { window.location.reload(); } });
+    document.body.appendChild(btn);
 }
 
-// --- Gestion de l'affichage des vues ---
-function showView(viewId) {
+// --- Gestion de l'affichage des vues (Adaptée pour Nouveau Menu) ---
+export function showView(viewId) { // Exportée pour cravingsView -> sosView
     document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
-    document.querySelectorAll('.nav-button').forEach(button => button.classList.remove('active'));
+    document.querySelectorAll('#mainMenu .menu-item.active-view').forEach(item => item.classList.remove('active-view'));
+
     const viewToShow = document.getElementById(viewId);
     if (viewToShow) {
         viewToShow.classList.add('active');
+        const menuItemToActivate = document.querySelector(`#mainMenu .menu-item[data-viewid="${viewId}"]`);
+        if (menuItemToActivate) menuItemToActivate.classList.add('active-view');
+
         if (viewId === 'progressView') refreshCharts();
         else if (viewId === 'routineView') refreshRoutineView();
         else if (viewId === 'plannerView') refreshPlannerView();
-    } else { console.error(`Vue avec ID '${viewId}' introuvable !`); return; }
-
-    if (viewId !== 'toggleZenModeView') {
-         let buttonId;
-         if (viewId === 'settingsView') { buttonId = 'showSettingsBtn'; }
-         else if (viewId === 'focusTimerView') { buttonId = 'showFocusTimerBtn'; }
-         else if (viewId === 'cravingsView') { buttonId = 'showCravingsBtn'; } // Ajouter cas pour Cravings
-         else { const baseName = viewId.replace('View', ''); buttonId = `show${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Btn`; }
-        const buttonToActivate = document.getElementById(buttonId);
-        if (buttonToActivate) { buttonToActivate.classList.add('active'); }
-        else { if (buttonId !== 'showToggleZenModeBtn') { console.warn(`Bouton navigation '${buttonId}' introuvable pour vue '${viewId}'.`); } }
+        // Les autres vues n'ont pas de refresh spécifique à l'affichage pour l'instant
+    } else {
+         console.error(`Vue avec ID '${viewId}' introuvable !`);
+         showView('sobrietyView'); // Fallback vers la vue par défaut
+         return;
     }
     window.scrollTo(0, 0);
 }
+// Rendre showView accessible globalement pour cravingsView -> sosView
 window.showView = showView;
+
 
 // --- Initialisation des modules de l'application ---
 function initializeApp() {
     console.log("DOM Chargé. Initialisation application Clair·e...");
-    zenModeButton = document.getElementById('toggleZenModeBtn');
-    if (zenModeButton) { const initialZenState = isZenModeEnabled(); setZenMode(initialZenState); zenModeButton.addEventListener('click', toggleZenMode); }
-    else { console.warn("Bouton 'toggleZenModeBtn' introuvable."); }
 
+    // --- Initialisation du Menu Burger ---
+    const menuToggleBtn = document.getElementById('menuToggleBtn');
+    const mainMenu = document.getElementById('mainMenu');
+    if (menuToggleBtn && mainMenu) {
+        menuToggleBtn.addEventListener('click', () => {
+            const isExpanded = menuToggleBtn.getAttribute('aria-expanded') === 'true';
+            menuToggleBtn.setAttribute('aria-expanded', !isExpanded);
+            mainMenu.classList.toggle('open');
+            mainMenu.setAttribute('aria-hidden', String(isExpanded)); // Mettre à jour aria-hidden
+            if (!isExpanded && mainMenu.querySelector('.menu-item')) { mainMenu.querySelector('.menu-item').focus(); }
+        });
+        mainMenu.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const viewId = item.dataset.viewid;
+                if (viewId) {
+                    showView(viewId);
+                    menuToggleBtn.setAttribute('aria-expanded', 'false'); // Fermer menu
+                    mainMenu.classList.remove('open');
+                    mainMenu.setAttribute('aria-hidden', 'true');
+                }
+            });
+        });
+        document.addEventListener('click', (event) => { // Fermer menu si clic en dehors
+            if (mainMenu.classList.contains('open') && !mainMenu.contains(event.target) && !menuToggleBtn.contains(event.target)) {
+                menuToggleBtn.setAttribute('aria-expanded', 'false'); mainMenu.classList.remove('open'); mainMenu.setAttribute('aria-hidden', 'true');
+            }
+        });
+    } else { console.warn("Menu burger ou menu principal introuvable."); }
+
+    // --- Initialisation du Mode Zen (Logique SUPPRIMÉE) ---
+
+    // Initialisation des Vues
     const views = [
         { id: 'sobrietyView', initFn: initSobrietyTracker }, { id: 'journalView', initFn: initJournal },
         { id: 'moodTrackerView', initFn: initMoodTracker }, { id: 'progressView', initFn: initProgressView },
         { id: 'exercisesView', initFn: initExercisesView }, { id: 'routineView', initFn: initRoutineView },
-        { id: 'plannerView', initFn: initPlannerView }, { id: 'testimonialsView', initFn: initTestimonialsView },
-        { id: 'victoriesView', initFn: initVictoriesView }, { id: 'sosView', initFn: initSosView },
-        { id: 'settingsView', initFn: initSettingsView }, { id: 'cravingsView', initFn: initCravingsView },
-        { id: 'focusTimerView', initFn: initFocusTimerView }
+        { id: 'plannerView', initFn: initPlannerView }, { id: 'cravingsView', initFn: initCravingsView },
+        { id: 'focusView', initFn: initFocusView }, { id: 'testimonialsView', initFn: initTestimonialsView },
+        { id: 'victoriesView', initFn: initVictoriesView }, { id: 'settingsView', initFn: initSettingsView },
+        { id: 'sosView', initFn: initSosView }
     ];
     views.forEach(view => {
         const container = document.getElementById(view.id);
@@ -110,21 +139,17 @@ function initializeApp() {
         } else if (!container) { console.error(`Conteneur '${view.id}' introuvable.`); }
     });
 
-    // Assurez-vous que 'Planner' est unique ici et correspond à l'ID du bouton dans index.html (showPlannerBtn)
-    const navButtons = [
-        'Sobriety', 'Journal', 'MoodTracker', 'Progress', 'Exercises', 'Routine',
-        'Planner', // <<< VÉRIFIER L'UNICITÉ ET LA CASSE
-        'Testimonials', 'Victories', 'Cravings', 'FocusTimer', 'Settings', 'Sos' // Ordre peut varier
-    ];
-    navButtons.forEach(viewName => {
-        const buttonId = `show${viewName}Btn`;
-        const button = document.getElementById(buttonId);
-        const viewId = `${viewName.charAt(0).toLowerCase() + viewName.slice(1)}View`;
-        if (button) { button.addEventListener('click', () => showView(viewId)); }
-        else { if (buttonId !== 'showToggleZenModeBtn') { console.warn(`Bouton navigation '${buttonId}' introuvable.`); } }
-    });
+    // Écouteurs de navigation (Logique SUPPRIMÉE, gérée par le menu burger)
 
+    // Afficher la vue par défaut
     if (!document.querySelector('.view-section.active')) { showView('sobrietyView'); }
+    else { // S'assurer que l'item de menu pour la vue active initiale est bien marqué
+        const activeView = document.querySelector('.view-section.active');
+        if(activeView) {
+             const menuItemToActivate = document.querySelector(`#mainMenu .menu-item[data-viewid="${activeView.id}"]`);
+             if (menuItemToActivate) menuItemToActivate.classList.add('active-view');
+        }
+    }
 }
 
 // --- Lancement ---
