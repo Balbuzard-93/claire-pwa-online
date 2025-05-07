@@ -1,273 +1,156 @@
-// consumptionView.js (Refonte pour suivi consommation)
+// consumptionView.js (Anciennement sobrietyTracker.js - Refonte pour suivi consommation et export calculateSoberDays)
 import { getAlcoholLogForDate, saveAlcoholLogForDate, getCurrentDateString } from './storageUtils.js';
-import { getDailyMotivationMessage } from './motivationUtils.js'; // Assurez-vous que ce fichier existe et exporte la fonction
+import { getDailyMotivationMessage } from './motivationUtils.js';
 
-// Définition des unités d'alcool par type de boisson (simplifié)
+// Définition des unités d'alcool par type de boisson
 const DRINK_UNIT_VALUES = {
-    // Format: clé_unique: unités_par_verre_standard
-    // Bières
-    biere_legere_25cl_4pct: 1.0,    // Ex: Bière légère 25cl à 4%
-    biere_standard_33cl_5pct: 1.6,  // Ex: Canette/Bouteille standard 33cl à 5%
-    biere_forte_33cl_8pct: 2.6,     // Ex: Bière forte 33cl à 8%
-    biere_pinte_50cl_5pct: 2.5,   // Ex: Pinte (50cl) à 5%
-    // Vins
-    vin_verre_12cl_12pct: 1.4,    // Ex: Verre standard 12cl à 12%
-    vin_verre_15cl_12pct: 1.8,    // Ex: Grand verre 15cl à 12%
-    vin_bouteille_75cl_12pct: 9.0, // Bouteille entière (pour info, pas pour saisie directe)
-    // Spiritueux
-    spiritueux_shot_3cl_40pct: 1.2, // Ex: Shot/Dose bar 3cl à 40%
-    spiritueux_shot_4cl_40pct: 1.6, // Ex: Shot/Dose plus grand 4cl à 40%
-    // Cocktails (plus difficile, dépend de la recette, exemple simple)
-    cocktail_leger: 1.5,
-    cocktail_moyen: 2.0,
-    cocktail_fort: 3.0,
-    // Cidres
-    cidre_doux_25cl_3pct: 0.75,
-    cidre_brut_25cl_5pct: 1.25
-    // Ajouter d'autres types et tailles si besoin
+    biere_legere_25cl_4pct: 1.0, biere_standard_33cl_5pct: 1.6, biere_forte_33cl_8pct: 2.6, biere_pinte_50cl_5pct: 2.5,
+    vin_verre_12cl_12pct: 1.4, vin_verre_15cl_12pct: 1.8,
+    spiritueux_shot_3cl_40pct: 1.2, spiritueux_shot_4cl_40pct: 1.6,
+    cocktail_leger: 1.5, cocktail_moyen: 2.0, cocktail_fort: 3.0,
+    cidre_doux_25cl_3pct: 0.75, cidre_brut_25cl_5pct: 1.25
+};
+const DRINK_NAMES = {
+    biere_legere_25cl_4pct: "Bière Légère (25cl, 4%)", biere_standard_33cl_5pct: "Bière Standard (33cl, 5%)", biere_forte_33cl_8pct: "Bière Forte (33cl, 8%)", biere_pinte_50cl_5pct: "Bière Pinte (50cl, 5%)",
+    vin_verre_12cl_12pct: "Vin (Verre 12cl, 12%)", vin_verre_15cl_12pct: "Vin (Grand Verre 15cl, 12%)",
+    spiritueux_shot_3cl_40pct: "Spiritueux (Shot 3cl, 40%)", spiritueux_shot_4cl_40pct: "Spiritueux (Dose 4cl, 40%)",
+    cocktail_leger: "Cocktail Léger", cocktail_moyen: "Cocktail Moyen", cocktail_fort: "Cocktail Fort",
+    cidre_doux_25cl_3pct: "Cidre Doux (25cl, 3%)", cidre_brut_25cl_5pct: "Cidre Brut (25cl, 5%)"
 };
 
-const DRINK_NAMES = { // Noms pour l'affichage dans le select
-    biere_legere_25cl_4pct: "Bière Légère (25cl, 4%)",
-    biere_standard_33cl_5pct: "Bière Standard (33cl, 5%)",
-    biere_forte_33cl_8pct: "Bière Forte (33cl, 8%)",
-    biere_pinte_50cl_5pct: "Bière Pinte (50cl, 5%)",
-    vin_verre_12cl_12pct: "Vin (Verre 12cl, 12%)",
-    vin_verre_15cl_12pct: "Vin (Grand Verre 15cl, 12%)",
-    spiritueux_shot_3cl_40pct: "Spiritueux (Shot 3cl, 40%)",
-    spiritueux_shot_4cl_40pct: "Spiritueux (Dose 4cl, 40%)",
-    cocktail_leger: "Cocktail Léger",
-    cocktail_moyen: "Cocktail Moyen",
-    cocktail_fort: "Cocktail Fort",
-    cidre_doux_25cl_3pct: "Cidre Doux (25cl, 3%)",
-    cidre_brut_25cl_5pct: "Cidre Brut (25cl, 5%)"
-};
+let todayStringForConsumption = ''; // Renommer pour éviter conflit avec d'autres todayString
+let todaysLog = null;
+let drinksForToday = [];
 
+/** Calcule le total des unités. */
+function calculateTotalUnits(drinksArray) { if (!Array.isArray(drinksArray)) return 0; return drinksArray.reduce((total, drink) => total + (drink.count * drink.unitValue), 0); }
 
-let todayString = '';
-let todaysLog = null; // Structure: { date, totalUnits, drinks: [{typeKey, count, unitValue, name}] }
-let drinksForToday = []; // Liste temporaire des boissons ajoutées pour la journée en cours de saisie
-
-/** Calcule le total des unités pour la liste de boissons actuelle. */
-function calculateTotalUnits(drinksArray) {
-    if (!Array.isArray(drinksArray)) return 0;
-    return drinksArray.reduce((total, drink) => total + (drink.count * drink.unitValue), 0);
-}
-
-/** Affiche les boissons déjà ajoutées pour aujourd'hui et le total d'unités. */
+/** Affiche les consommations du jour. */
 function renderTodaysConsumption(container) {
-    if (!container) return;
-    container.innerHTML = ''; // Vider pour re-rendre
-
+    if (!container) return; container.innerHTML = '';
     const totalUnits = calculateTotalUnits(drinksForToday);
-
-    const summaryP = document.createElement('p');
-    summaryP.className = 'consumption-summary';
-    summaryP.innerHTML = `Unités enregistrées pour aujourd'hui : <strong>${totalUnits.toFixed(1)}</strong>`;
-    container.appendChild(summaryP);
-
+    const summaryP = document.createElement('p'); summaryP.className = 'consumption-summary'; summaryP.innerHTML = `Unités enregistrées : <strong>${totalUnits.toFixed(1)}</strong>`; container.appendChild(summaryP);
     if (drinksForToday.length > 0) {
-        const ul = document.createElement('ul');
-        ul.className = 'todays-drinks-list';
+        const ul = document.createElement('ul'); ul.className = 'todays-drinks-list';
         drinksForToday.forEach((drink, index) => {
-            const li = document.createElement('li');
-            // Utiliser textContent pour la sécurité
-            const textNode = document.createTextNode(`${drink.count} x ${drink.name} `);
-            const unitsSpan = document.createElement('span');
-            unitsSpan.textContent = `(${(drink.count * drink.unitValue).toFixed(1)} unités)`;
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-drink-btn button-delete';
-            deleteBtn.innerHTML = '×';
-            deleteBtn.title = 'Supprimer cette boisson de la liste du jour';
-            deleteBtn.dataset.index = index;
-            deleteBtn.setAttribute('aria-label', `Supprimer ${drink.count} x ${drink.name}`);
-
-            li.appendChild(textNode);
-            li.appendChild(unitsSpan);
-            li.appendChild(deleteBtn);
-            ul.appendChild(li);
+            const li = document.createElement('li'); const txtN = document.createTextNode(`${drink.count} x ${drink.name} `); const uS = document.createElement('span'); uS.textContent = `(${(drink.count * drink.unitValue).toFixed(1)} u.)`; const delB = document.createElement('button'); delB.className = 'delete-drink-btn button-delete'; delB.innerHTML = '×'; delB.title = 'Supprimer'; delB.dataset.index = index; delB.setAttribute('aria-label', `Supprimer ${drink.count}x ${drink.name}`);
+            li.appendChild(txtN); li.appendChild(uS); li.appendChild(delB); ul.appendChild(li);
         });
         container.appendChild(ul);
-
-        // Attacher listeners aux boutons supprimer
-        ul.querySelectorAll('.delete-drink-btn').forEach(btn => {
-            btn.addEventListener('click', (event) => {
-                const drinkIndex = parseInt(event.target.dataset.index, 10);
-                if (!isNaN(drinkIndex) && drinkIndex >= 0 && drinkIndex < drinksForToday.length) {
-                    drinksForToday.splice(drinkIndex, 1);
-                    renderTodaysConsumption(container); // Re-rendre la liste
-                }
-            });
-        });
-    } else {
-        const p = document.createElement('p');
-        p.textContent = 'Aucune consommation ajoutée pour aujourd\'hui.';
-        container.appendChild(p);
-    }
+        ul.querySelectorAll('.delete-drink-btn').forEach(btn => { btn.addEventListener('click', (e) => { const idx = parseInt(e.target.dataset.index); if (!isNaN(idx)) { drinksForToday.splice(idx, 1); renderTodaysConsumption(container); } }); });
+    } else { const p=document.createElement('p'); p.textContent = 'Aucune consommation ajoutée.'; container.appendChild(p); }
 }
 
-/** Ajoute une boisson à la liste temporaire de la journée. */
+/** Ajoute une boisson à la liste temporaire. */
 function addDrinkToDailyList(typeSelect, countInput, todaysConsumptionDiv) {
     if (!typeSelect || !countInput || !todaysConsumptionDiv) return;
-
-    const drinkTypeKey = typeSelect.value;
-    const count = parseInt(countInput.value, 10);
-
-    if (!drinkTypeKey) { alert("Veuillez sélectionner un type de boisson."); return; }
-    if (isNaN(count) || count <= 0 || count > 99) { alert("Veuillez entrer un nombre valide de boissons (1-99)."); return; }
-
-    const unitValue = DRINK_UNIT_VALUES[drinkTypeKey];
-    const drinkName = DRINK_NAMES[drinkTypeKey] || drinkTypeKey.replace(/_/g, ' '); // Fallback name
-
-    if (typeof unitValue === 'undefined') {
-        console.error("Type de boisson inconnu:", drinkTypeKey);
-        alert("Erreur: Type de boisson non reconnu.");
-        return;
-    }
-
-    drinksForToday.push({
-        typeKey: drinkTypeKey, // Sauvegarder la clé pour référence
-        count: count,
-        unitValue: unitValue,
-        name: drinkName // Sauvegarder le nom pour affichage
-    });
-
-    // Réinitialiser les champs du formulaire
-    typeSelect.value = '';
-    countInput.value = '1';
-
-    renderTodaysConsumption(todaysConsumptionDiv); // Mettre à jour l'affichage
+    const drinkTypeKey = typeSelect.value; const count = parseInt(countInput.value);
+    if (!drinkTypeKey) { alert("Sélectionnez une boisson."); return; }
+    if (isNaN(count) || count <= 0 || count > 99) { alert("Nombre invalide (1-99)."); return; }
+    const unitValue = DRINK_UNIT_VALUES[drinkTypeKey]; const drinkName = DRINK_NAMES[drinkTypeKey] || drinkTypeKey;
+    if (typeof unitValue === 'undefined') { alert("Type de boisson non reconnu."); return; }
+    drinksForToday.push({ typeKey: drinkTypeKey, count: count, unitValue: unitValue, name: drinkName });
+    typeSelect.value = ''; countInput.value = '1';
+    renderTodaysConsumption(todaysConsumptionDiv);
 }
 
-/** Sauvegarde le log de consommation du jour dans IndexedDB. */
-async function saveDailyLog(dateStr, consumptionContainer) { // consumptionContainer n'est plus vraiment utilisé ici
+/** Sauvegarde le log du jour. */
+async function saveDailyLog(dateStr, consumptionContainer) {
     const totalUnits = calculateTotalUnits(drinksForToday);
-    const logData = {
-        // date: dateStr, // La date est la clé dans IDB, pas besoin de la stocker DANS l'objet si redondant
-        totalUnits: parseFloat(totalUnits.toFixed(1)), // S'assurer que c'est un nombre
-        drinks: [...drinksForToday] // Copier le tableau
-    };
-
-    const saveButton = document.getElementById('saveDayLogBtn');
-    if(saveButton) saveButton.disabled = true;
-
+    const logData = { totalUnits: parseFloat(totalUnits.toFixed(1)), drinks: [...drinksForToday] };
+    const saveBtn = document.getElementById('saveDayLogBtn'); if(saveBtn) saveBtn.disabled = true;
     try {
-        await saveAlcoholLogForDate(dateStr, logData); // La fonction gère l'ajout de 'date' à l'objet
-        todaysLog = { date: dateStr, ...logData }; // Mettre à jour l'état local connu
-        alert(`Consommation du ${new Date(dateStr+'T00:00:00Z').toLocaleDateString('fr-FR')} enregistrée : ${totalUnits.toFixed(1)} unités.`);
-        // Après sauvegarde, les boutons d'ajout devraient être désactivés ou la vue indiquer "Journée enregistrée"
-        // Pour l'instant, on ne grise pas, l'utilisateur peut vouloir ajouter plus tard dans la journée.
-        // On pourrait ajouter un message "Journée enregistrée, vous pouvez encore modifier."
-    } catch (error) {
-        console.error("Erreur sauvegarde log alcool:", error);
-        alert("Erreur lors de l'enregistrement de la consommation.");
-    } finally {
-        if(saveButton) saveButton.disabled = false;
-    }
+        await saveAlcoholLogForDate(dateStr, logData);
+        todaysLog = { date: dateStr, ...logData };
+        alert(`Consommation du ${new Date(dateStr+'T00:00:00Z').toLocaleDateString('fr-FR')} enregistrée.`);
+    } catch (e) { console.error("Err save log alcool:", e); alert("Erreur enregistrement conso."); }
+    finally { if(saveBtn) saveBtn.disabled = false; }
 }
 
-/** Charge le log du jour et initialise l'interface. */
+/** Charge le log du jour et initialise l'UI. */
 async function loadAndRenderDay(viewContainerElement) {
     if (!viewContainerElement) return;
-    todayString = getCurrentDateString();
-    console.log("Consumption LOG: Chargement pour date:", todayString);
+    todayStringForConsumption = getCurrentDateString(); // Utilise la variable renommée
+    // console.log("Consumption LOG: Chargement pour date:", todayStringForConsumption);
 
     const motivationContainer = viewContainerElement.querySelector('#dailyMotivation');
     const formContainer = viewContainerElement.querySelector('#consumptionFormContainer');
     const todaysConsumptionDiv = viewContainerElement.querySelector('#todaysConsumption');
+    if (!motivationContainer || !formContainer || !todaysConsumptionDiv) { console.error("Elts UI consumptionView manquants."); return; }
 
-    if (!motivationContainer || !formContainer || !todaysConsumptionDiv) {
-        console.error("Éléments UI de consumptionView introuvables.");
-        viewContainerElement.innerHTML = "<p>Erreur: Structure de la vue de consommation corrompue.</p>";
-        return;
-    }
+    try { const p = document.createElement('p'); p.textContent = getDailyMotivationMessage(); motivationContainer.innerHTML = ''; motivationContainer.appendChild(p); } catch(e){}
+    let optsHtml = '<option value="">-- Boisson --</option>'; Object.keys(DRINK_NAMES).forEach(key => { optsHtml += `<option value="${key}">${DRINK_NAMES[key]}</option>`; });
+    formContainer.innerHTML = `<div class="consumption-input-group"><label for="drinkTypeSelect">Type:</label><select id="drinkTypeSelect">${optsHtml}</select></div><div class="consumption-input-group"><label for="drinkCountInput">Nombre:</label><input type="number" id="drinkCountInput" value="1" min="1" max="50"></div><button id="addDrinkBtn" class="button-secondary">Ajouter Boisson</button><button id="saveDayLogBtn" class="button-primary">Enregistrer Journée</button>`;
 
-    // Afficher la motivation
     try {
-        const motivationP = document.createElement('p');
-        motivationP.textContent = getDailyMotivationMessage();
-        motivationContainer.innerHTML = '';
-        motivationContainer.appendChild(motivationP);
-    } catch(e) { console.error("Erreur affichage motivation:", e)}
+        todaysLog = await getAlcoholLogForDate(todayStringForConsumption);
+        drinksForToday = (todaysLog && Array.isArray(todaysLog.drinks)) ? [...todaysLog.drinks] : [];
+    } catch (e) { console.error("Err load log alcool:", e); drinksForToday = []; todaysLog = null; }
+    renderTodaysConsumption(todaysConsumptionDiv);
 
-    // Formulaire de saisie
-    let optionsHtml = '<option value="">-- Choisissez une boisson --</option>';
-    for (const key in DRINK_NAMES) { // Utiliser DRINK_NAMES pour les options
-        optionsHtml += `<option value="${key}">${DRINK_NAMES[key]}</option>`;
-    }
+    const addBtn = formContainer.querySelector('#addDrinkBtn'); const saveBtn = formContainer.querySelector('#saveDayLogBtn');
+    const typeSel = formContainer.querySelector('#drinkTypeSelect'); const countIn = formContainer.querySelector('#drinkCountInput');
+    if (addBtn && typeSel && countIn) { addBtn.addEventListener('click', () => addDrinkToDailyList(typeSel, countIn, todaysConsumptionDiv)); }
+    if (saveBtn) { saveBtn.addEventListener('click', async () => await saveDailyLog(todayStringForConsumption, todaysConsumptionDiv)); }
+}
 
-    formContainer.innerHTML = `
-        <div class="consumption-input-group">
-            <label for="drinkTypeSelect">Type de boisson :</label>
-            <select id="drinkTypeSelect" aria-label="Sélectionner le type de boisson">${optionsHtml}</select>
-        </div>
-        <div class="consumption-input-group">
-            <label for="drinkCountInput">Nombre de verres :</label>
-            <input type="number" id="drinkCountInput" value="1" min="1" max="50" aria-label="Nombre de verres">
-        </div>
-        <button id="addDrinkBtn" class="button-secondary">Ajouter cette boisson à la liste du jour</button>
-        <button id="saveDayLogBtn" class="button-primary">Enregistrer/Mettre à jour la consommation du jour</button>
-    `;
+// *** FONCTION POUR LES BADGES (anciennement calculateSoberDays) ***
+const SOBRIETY_TARGET_START_DATE_KEY_FOR_BADGES = 'claireAppSobrietyTargetStartDate';
 
-    // Charger les données du jour
+export function calculateSoberDays() { // Garder ce nom pour compatibilité avec progressView
+    const startDateString = localStorage.getItem(SOBRIETY_TARGET_START_DATE_KEY_FOR_BADGES);
+    // console.log(`ConsumptionView LOG: calculateSoberDays - startDateString from LS: [${startDateString}]`);
+    if (!startDateString || typeof startDateString !== 'string') return 0;
     try {
-        todaysLog = await getAlcoholLogForDate(todayString);
-        if (todaysLog && Array.isArray(todaysLog.drinks)) {
-            drinksForToday = [...todaysLog.drinks]; // Initialiser avec les données sauvegardées
-        } else {
-            drinksForToday = []; // Journée vide ou nouveau log
-            todaysLog = null; // Assurer que si pas de log, c'est bien null
-        }
-    } catch (error) {
-        console.error("Erreur chargement log alcool du jour:", error);
-        drinksForToday = [];
-        todaysLog = null;
-    }
+        const start = new Date(startDateString); if (isNaN(start.getTime())) return 0;
+        const startUTC = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+        const now = new Date(); const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+        if (isNaN(startUTC) || isNaN(nowUTC)) return 0;
+        const diff = nowUTC - startUTC; const oneDayMs = 86400000;
+        const days = diff >= 0 ? Math.floor(diff / oneDayMs) : 0;
+        // console.log(`ConsumptionView LOG: calculateSoberDays - Jours calculés: ${days}`);
+        return days;
+    } catch (e) { console.error("ConsumptionView LOG ERROR: Erreur dans calculateSoberDays:", e); return 0; }
+}
 
-    renderTodaysConsumption(todaysConsumptionDiv); // Afficher la liste initiale
-
-    // Attacher listeners aux boutons du formulaire
-    const addDrinkBtn = formContainer.querySelector('#addDrinkBtn');
-    const saveDayLogBtn = formContainer.querySelector('#saveDayLogBtn');
-    const typeSelect = formContainer.querySelector('#drinkTypeSelect');
-    const countInput = formContainer.querySelector('#drinkCountInput');
-
-    if (addDrinkBtn && typeSelect && countInput) {
-        addDrinkBtn.addEventListener('click', () => {
-            addDrinkToDailyList(typeSelect, countInput, todaysConsumptionDiv);
-        });
-    }
-    if (saveDayLogBtn) {
-        saveDayLogBtn.addEventListener('click', async () => {
-            await saveDailyLog(todayString, todaysConsumptionDiv); // Passer todayString
-        });
-    }
+export function setSobrietyTargetStartDate(dateISOString = null) {
+    if (dateISOString === null) { localStorage.removeItem(SOBRIETY_TARGET_START_DATE_KEY_FOR_BADGES); console.log("Date objectif badges supprimée."); }
+    else if (typeof dateISOString === 'string' && new Date(dateISOString).toString() !== "Invalid Date") { localStorage.setItem(SOBRIETY_TARGET_START_DATE_KEY_FOR_BADGES, dateISOString); console.log("Date objectif badges définie:", dateISOString); }
+    else { console.error("Tentative de définir une date objectif invalide."); }
 }
 
 /** Initialise la vue Suivi de Consommation. */
 export async function initConsumptionView(viewContainerElement) {
-    console.log("Consumption LOG: Initialisation...");
+    // console.log("Consumption LOG: Initialisation...");
     if (!viewContainerElement) { console.error("Conteneur #consumptionView introuvable."); return; }
 
-    // Structure HTML de base pour la vue
+    let setBadgeDateButtonHtml = '';
+    if (!localStorage.getItem(SOBRIETY_TARGET_START_DATE_KEY_FOR_BADGES)) {
+        console.log("ConsumptionView LOG: Aucune date objectif pour badges. Proposer bouton.");
+        setBadgeDateButtonHtml = `<p><button id="setTodayAsBadgeStartDateBtn" class="button-link-style">Définir aujourd'hui comme début pour les badges d'abstinence ?</button></p>`;
+    }
+
     viewContainerElement.innerHTML = `
         <div id="dailyMotivation" class="motivation-section"></div>
         <h2>Suivi de Consommation</h2>
-        <p class="consumption-intro">Enregistrez ici votre consommation d'alcool pour la journée en cours. L'application calculera les unités pour vous.</p>
-        <div id="consumptionFormContainer">
-            <!-- Formulaire de saisie injecté ici -->
-        </div>
-        <div id="todaysConsumption" class="todays-consumption-summary">
-            <!-- Résumé des boissons du jour injecté ici -->
-        </div>
+        <p class="consumption-intro">Enregistrez ici votre consommation journalière.</p>
+        ${setBadgeDateButtonHtml}
+        <div id="consumptionFormContainer"></div>
+        <div id="todaysConsumption" class="todays-consumption-summary"></div>
     `;
-    try {
-        await loadAndRenderDay(viewContainerElement); // Charger les données et l'UI
-    } catch (error) {
-         console.error("Erreur majeure lors de l'initialisation de ConsumptionView:", error);
-         if (viewContainerElement.querySelector('#todaysConsumption')) {
-              viewContainerElement.querySelector('#todaysConsumption').innerHTML = "<p>Erreur lors du chargement des données de consommation.</p>";
-         }
+
+    const setBadgeDateBtn = viewContainerElement.querySelector('#setTodayAsBadgeStartDateBtn');
+    if (setBadgeDateBtn) {
+         setBadgeDateBtn.addEventListener('click', () => {
+              if (confirm("Définir aujourd'hui comme date de départ pour les badges (basés sur 0 conso) ?")) {
+                   setSobrietyTargetStartDate(new Date().toISOString());
+                   alert("Date de départ pour les badges définie à aujourd'hui.");
+                   setBadgeDateBtn.style.display = 'none'; // Cacher le bouton après clic
+              }
+         });
     }
-    console.log("Consumption LOG: Initialisation terminée.");
+
+    try { await loadAndRenderDay(viewContainerElement); }
+    catch (error) { console.error("Erreur init ConsumptionView:", error); const tc=viewContainerElement.querySelector('#todaysConsumption'); if(tc)tc.innerHTML="<p>Erreur chargement.</p>"; }
+    // console.log("Consumption LOG: Initialisation terminée.");
 }
