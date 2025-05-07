@@ -346,6 +346,84 @@ body.zen-mode .focus-task-link {
     display: none; /* Cacher le lien tâche en mode Zen pour simplifier */
 }
 
+/* DANS style.css - Styles pour les sous-tâches du Planificateur */
+
+.planner-task-item .task-main-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Espace entre checkbox, texte, boutons */
+}
+
+.planner-task-item .task-text {
+    flex-grow: 1; /* Le texte prend l'espace restant */
+}
+
+.add-subtask-btn {
+    /* Style similaire à .button-delete mais moins "destructeur" */
+    background: none;
+    border: 1px solid #ccc;
+    color: #777;
+    font-size: 0.8em; /* Plus petit */
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0.1rem 0.4rem;
+    line-height: 1;
+    border-radius: 3px;
+    margin-left: auto; /* Pousser à droite avant le bouton supprimer principal */
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+}
+.add-subtask-btn:hover {
+    background-color: #eee;
+    color: #333;
+}
+
+.sub-task-list {
+    list-style: none;
+    padding-left: 2em; /* Indentation pour les sous-tâches */
+    margin-top: 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.sub-task-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+    font-size: 0.9em; /* Sous-tâches un peu plus petites */
+}
+
+.sub-task-item .task-checkbox {
+    width: 1.1em; /* Checkbox un peu plus petite */
+    height: 1.1em;
+}
+.sub-task-item .task-text {
+    flex-grow: 1;
+}
+.sub-task-item.task-completed .task-text {
+    text-decoration: line-through;
+    color: #888;
+}
+.sub-task-item .delete-task-btn { /* Bouton supprimer pour sous-tâche */
+    font-size: 1em; /* Plus petit */
+}
+
+/* Ajustement pour le bouton supprimer de la tâche principale s'il y a un bouton add-subtask */
+.planner-task-item .task-main-line > .delete-task-btn {
+    margin-left: 0.5rem; /* Garder un peu d'espace */
+}
+
+/* Mode Zen pour sous-tâches */
+body.zen-mode .add-subtask-btn {
+    font-size: 0.7em;
+    padding: 0.1rem 0.3rem;
+}
+body.zen-mode .sub-task-list {
+    padding-left: 1.5em;
+}
+body.zen-mode .sub-task-item {
+    font-size: 0.85em;
+}
 
 /* --- Focus Visible --- */
 :focus-visible { outline: 3px solid #87CEEB; outline-offset: 2px; box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.3); border-radius: 5px; }
