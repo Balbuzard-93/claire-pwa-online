@@ -176,23 +176,22 @@ function initializeApp() {
 
     // Écouteurs de navigation
     // *** AJOUT DE 'Cravings' À LA LISTE ***
-    const navButtons = [
-        'Sobriety', 'Journal', 'MoodTracker', 'Progress', 'Exercises',
-        'Routine', 'Planner', 'Testimonials', 'Victories', 'Sos',
-        'Settings', 'Cravings', 'Focus' // <<<< NOUVEAU NOM ICI
-    ];
-    navButtons.forEach(viewName => {
-        const buttonId = `show${viewName}Btn`;
-        const button = document.getElementById(buttonId);
-        const viewId = `${viewName.charAt(0).toLowerCase() + viewName.slice(1)}View`;
-        if (button) {
-            button.addEventListener('click', () => showView(viewId));
-        } else {
-             if (buttonId !== 'showToggleZenModeBtn') {
-                 console.warn(`Bouton navigation '${buttonId}' introuvable.`);
-             }
-        }
-    });
+    
+// DANS app.js -> initializeApp -> navButtons.forEach
+navButtons.forEach(viewName => {
+    const buttonId = `show${viewName}Btn`;
+    const button = document.getElementById(buttonId);
+    // Construit l'ID de la vue à afficher (ex: 'journalView')
+    const viewId = `${viewName.charAt(0).toLowerCase() + viewName.slice(1)}View`;
+    if (button) {
+        button.addEventListener('click', () => showView(viewId));
+    } else {
+        // Ne pas afficher de warning pour les boutons qui n'existent pas (Zen)
+         if (buttonId !== 'showToggleZenModeBtn') {
+             console.warn(`Bouton de navigation '${buttonId}' introuvable.`);
+         }
+    }
+}); // Fin de navButtons.forEach
 
     // Afficher vue par défaut si aucune n'est active
     if (!document.querySelector('.view-section.active')) {
