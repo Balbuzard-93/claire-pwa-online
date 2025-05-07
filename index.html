@@ -13,38 +13,43 @@
 </head>
 <body>
     <header>
-        <h1>Clair·e</h1>
-        <nav>
-            <!-- Assurez-vous que chaque ID est unique et correct -->
-            <button id="showSobrietyBtn" class="nav-button active" title="Suivi Sobriété">📊</button>
-            <button id="showJournalBtn" class="nav-button" title="Journal Personnel">📝</button>
-            <button id="showMoodTrackerBtn" class="nav-button" title="Suivi Humeur">😊</button>
-            <button id="showProgressBtn" class="nav-button" title="Progrès et Badges">📈</button>
-            <button id="showExercisesBtn" class="nav-button" title="Exercices Guidés">🧘‍♀️</button>
-            <button id="showRoutineBtn" class="nav-button" title="Routine Quotidienne">✅</button>
-            <button id="showPlannerBtn" class="nav-button" title="Plan du Jour">🎯</button> <!-- SEUL BOUTON PLAN -->
-            <button id="showTestimonialsBtn" class="nav-button" title="Témoignages">💬</button>
-            <button id="showVictoriesBtn" class="nav-button" title="Musée des Victoires">🏆</button>
-            <button id="showCravingsBtn" class="nav-button" title="Gérer une Envie">🌊</button>
-            <button id="showFocusTimerBtn" class="nav-button" title="Minuteur Focus">⏱️</button>
-            <button id="showSettingsBtn" class="nav-button" title="Paramètres">⚙️</button>
-            <button id="showSosBtn" class="nav-button sos-button" title="Outils SOS">🆘</button>
-            <button id="toggleZenModeBtn" class="nav-button zen-toggle-button" title="Basculer Mode Zen/Normal"></button>
+        <div class="header-content"> <!-- Wrapper pour titre et burger -->
+            <h1>Clair·e</h1>
+            <button id="menuToggleBtn" class="menu-toggle-button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mainMenu">
+                ☰
+            </button>
+        </div>
+        <nav id="mainMenu" class="main-menu" aria-hidden="true"> <!-- Menu caché -->
+            <ul>
+                <li><button class="menu-item" data-viewid="sobrietyView">📊 Suivi</button></li>
+                <li><button class="menu-item" data-viewid="journalView">📝 Journal</button></li>
+                <li><button class="menu-item" data-viewid="moodTrackerView">😊 Humeur</button></li>
+                <li><button class="menu-item" data-viewid="progressView">📈 Progrès</button></li>
+                <li><button class="menu-item" data-viewid="exercisesView">🧘‍♀️ Exercices</button></li>
+                <li><button class="menu-item" data-viewid="routineView">✅ Routine</button></li>
+                <li><button class="menu-item" data-viewid="plannerView">🎯 Plan</button></li>
+                <li><button class="menu-item" data-viewid="cravingsView">🌊 Gérer Envie</button></li>
+                <li><button class="menu-item" data-viewid="focusView">⏱️ Focus</button></li>
+                <li><button class="menu-item" data-viewid="testimonialsView">💬 Témoignages</button></li>
+                <li><button class="menu-item" data-viewid="victoriesView">🏆 Victoires</button></li>
+                <li><button class="menu-item" data-viewid="settingsView">⚙️ Paramètres</button></li>
+                <li><button class="menu-item sos-menu-item" data-viewid="sosView">🆘 SOS</button></li>
+            </ul>
         </nav>
     </header>
 
     <main id="app">
-        <div id="sobrietyView" class="view-section active"> <div id="dailyMotivation" class="motivation-section"></div> <h2>Mon Suivi</h2> <div id="sobrietyTrackerContainer"></div> </div>
+        <div id="sobrietyView" class="view-section active"><div id="dailyMotivation" class="motivation-section"></div><h2>Mon Suivi</h2><div id="sobrietyTrackerContainer"></div></div>
         <div id="journalView" class="view-section"></div>
         <div id="moodTrackerView" class="view-section"></div>
         <div id="progressView" class="view-section"></div>
         <div id="exercisesView" class="view-section"></div>
         <div id="routineView" class="view-section"></div>
         <div id="plannerView" class="view-section"></div>
+        <div id="cravingsView" class="view-section"></div>
+        <div id="focusView" class="view-section"></div>
         <div id="testimonialsView" class="view-section"></div>
         <div id="victoriesView" class="view-section"></div>
-        <div id="cravingsView" class="view-section"></div>
-        <div id="focusTimerView" class="view-section"></div>
         <div id="settingsView" class="view-section"></div>
         <div id="sosView" class="view-section"></div>
     </main>
