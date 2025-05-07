@@ -157,7 +157,7 @@ function initializeApp() {
         { id: 'victoriesView', initFn: initVictoriesView },
         { id: 'sosView', initFn: initSosView },
         { id: 'settingsView', initFn: initSettingsView },
-        { id: 'cravingsView', initFn: initCravingsView } // <<<< NOUVELLE VUE ICI
+        { id: 'cravingsView', initFn: initCravingsView }, // <<<< NOUVELLE VUE ICI
         { id: 'focusView', initFn: initFocusView }
     ];
 
