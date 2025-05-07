@@ -13,19 +13,18 @@
 </head>
 <body>
     <header>
-        <div class="header-content"> <!-- Wrapper pour titre et burger -->
+        <div class="header-content">
             <h1>Clair·e</h1>
-            <button id="menuToggleBtn" class="menu-toggle-button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mainMenu">
-                ☰
-            </button>
+            <button id="menuToggleBtn" class="menu-toggle-button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mainMenu">☰</button>
         </div>
-        <nav id="mainMenu" class="main-menu" aria-hidden="true"> <!-- Menu caché -->
+        <nav id="mainMenu" class="main-menu" aria-hidden="true">
             <ul>
                 <li><button class="menu-item" data-viewid="sobrietyView">📊 Suivi</button></li>
                 <li><button class="menu-item" data-viewid="journalView">📝 Journal</button></li>
                 <li><button class="menu-item" data-viewid="moodTrackerView">😊 Humeur</button></li>
                 <li><button class="menu-item" data-viewid="progressView">📈 Progrès</button></li>
                 <li><button class="menu-item" data-viewid="exercisesView">🧘‍♀️ Exercices</button></li>
+                <li><button class="menu-item" data-viewid="thoughtRecordView">🧠 Journal Pensées</button></li> <!-- <<< AJOUTÉ ICI -->
                 <li><button class="menu-item" data-viewid="routineView">✅ Routine</button></li>
                 <li><button class="menu-item" data-viewid="plannerView">🎯 Plan</button></li>
                 <li><button class="menu-item" data-viewid="cravingsView">🌊 Gérer Envie</button></li>
@@ -44,6 +43,7 @@
         <div id="moodTrackerView" class="view-section"></div>
         <div id="progressView" class="view-section"></div>
         <div id="exercisesView" class="view-section"></div>
+        <div id="thoughtRecordView" class="view-section"></div> <!-- <<< AJOUTÉ ICI -->
         <div id="routineView" class="view-section"></div>
         <div id="plannerView" class="view-section"></div>
         <div id="cravingsView" class="view-section"></div>
@@ -54,10 +54,7 @@
         <div id="sosView" class="view-section"></div>
     </main>
 
-    <footer>
-        <p>© Clair·e - Votre Compagnon Personnel</p>
-    </footer>
-
+    <footer> <p>© Clair·e - Votre Compagnon Personnel</p> </footer>
     <script src="app.js" type="module"></script>
 </body>
 </html>
