@@ -63,6 +63,141 @@ main#app { flex-grow: 1; padding: 1.5rem; width: 100%; max-width: 800px; margin:
 
 /* --- Styles Mode Zen (SUPPRIMÉS) --- */
 
+/* DANS style.css -> /* Styles spécifiques Vue Planificateur */
+
+/* ... (styles existants pour .planner-add-task, #newTaskInput, .energy-selector, #addTaskBtn, #plannerTaskList) ... */
+
+.planner-task-item {
+    display: flex;
+    flex-direction: column; /* Pour empiler contenu principal et sous-tâches */
+    /* gap: 0.8rem; Pas de gap ici, gérer marges internes */
+    padding: 0.8rem 0.5rem;
+    margin-bottom: 0.8rem; /* Espace entre tâches principales */
+    border-bottom: 1px solid #e0e0f0; /* Séparateur plus marqué */
+    background-color: #fff; /* Fond pour chaque item */
+    border-radius: 4px;
+}
+.planner-task-item:last-child {
+    border-bottom: none;
+}
+
+.main-task-content { /* Nouveau wrapper pour la tâche principale */
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+}
+
+.planner-task-item .task-checkbox { /* Styles inchangés */ }
+.planner-task-item .task-text { /* Styles inchangés */ }
+.energy-indicator { /* Styles inchangés */ }
+.delete-task-btn { /* Styles inchangés mais s'applique maintenant au bouton de la tâche principale */ }
+
+/* Section des sous-tâches */
+.subtask-section {
+    margin-top: 0.8rem;
+    padding-left: 2.5rem; /* Indentation pour les sous-tâches */
+    border-top: 1px dashed #eee; /* Séparateur léger */
+    padding-top: 0.8rem;
+}
+
+.subtask-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.5rem 0; /* Marge sous la liste des sous-tâches */
+}
+
+.subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    font-size: 0.9em; /* Sous-tâches un peu plus petites */
+    border-bottom: 1px dotted #f5f5f5; /* Séparateur très léger */
+}
+.subtask-item:last-child {
+    border-bottom: none;
+}
+.subtask-item .subtask-checkbox { /* Peut réutiliser .task-checkbox mais plus petit */
+    width: 1.1em;
+    height: 1.1em;
+    accent-color: #888; /* Couleur différente pour sous-tâches */
+}
+.subtask-item .subtask-text {
+    flex-grow: 1;
+    color: #555; /* Texte un peu plus clair */
+}
+.subtask-item.task-completed .subtask-text {
+    text-decoration: line-through;
+    color: #999;
+}
+.delete-subtask-btn { /* Appliquer .button-delete */
+    font-size: 1em; /* Plus petit */
+    color: #bbb;
+}
+.delete-subtask-btn:hover {
+    color: #FF6347;
+}
+
+.add-subtask-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+.new-subtask-input {
+    flex-grow: 1;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9em;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.add-subtask-btn { /* Style pour le bouton + */
+    background-color: #e0e0e0;
+    color: #555;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 1.2em; /* Taille du + */
+    font-weight: bold;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.add-subtask-btn:hover {
+    background-color: #d0d0d0;
+    color: #333;
+}
+
+/* Style tâche principale complétée (pas juste le texte) */
+.planner-task-item.task-completed > .main-task-content {
+    opacity: 0.6;
+}
+.planner-task-item.task-completed > .main-task-content .task-text {
+    text-decoration: line-through;
+    color: #777;
+}
+
+/* Mode Zen pour Planificateur avec sous-tâches */
+body.zen-mode .subtask-section {
+    padding-left: 1.5rem; /* Indentation réduite */
+}
+body.zen-mode .subtask-item {
+    font-size: 0.85em;
+    padding: 0.3rem 0;
+}
+body.zen-mode .new-subtask-input {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85em;
+}
+body.zen-mode .add-subtask-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 1em;
+}
+
 /* --- Styles Spécifiques Vue Focus --- */
 #focusView h2 {
     text-align: center;
