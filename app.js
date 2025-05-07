@@ -1,4 +1,4 @@
-// app.js (Intégrant CravingsView)
+// app.js (Complet, intégrant FocusView)
 
 // --- IMPORTS ---
 import { initSobrietyTracker } from './sobrietyTracker.js';
@@ -12,8 +12,8 @@ import { initPlannerView, refreshPlannerView } from './plannerView.js';
 import { initVictoriesView } from './victoriesView.js';
 import { initTestimonialsView } from './testimonialsView.js';
 import { initSettingsView } from './settingsView.js';
-import { initCravingsView } from './cravingsView.js'; // *** AJOUT IMPORT CRAVINGSVIEW ***
-import { initFocusView } from './focusView.js';
+import { initCravingsView } from './cravingsView.js';
+import { initFocusView } from './focusView.js'; // Assurez-vous que cette ligne est là
 
 // --- Constantes et Variables Globales ---
 const ZEN_MODE_KEY = 'claireAppZenModeEnabled';
@@ -36,168 +36,83 @@ function registerServiceWorker() {
                 setupServiceWorkerUpdateHandling(registration);
             })
             .catch(error => { console.error('Échec enregistrement SW:', error); });
-
         let refreshing;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (refreshing) return;
-            console.log("Nouveau SW activé. Rechargement...");
-            window.location.reload();
-            refreshing = true;
-        });
+        navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; console.log("Nouveau SW activé. Rechargement..."); window.location.reload(); refreshing = true; });
     } else { console.log('Service Workers non supportés.'); }
 }
-
 function setupServiceWorkerUpdateHandling(registration) {
-    if (registration.waiting) {
-        console.log("SW en attente trouvé immédiatement.");
-        showUpdateButton(registration);
-    }
+    if (registration.waiting) { console.log("SW en attente."); showUpdateButton(registration); }
     registration.addEventListener('updatefound', () => {
-        console.log("Nouvelle version du SW trouvée...");
-        const newWorker = registration.installing;
-        if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('Nouveau contenu prêt.');
-                    showUpdateButton(registration);
-                } else if (newWorker.state === 'installed') {
-                    console.log('Contenu mis en cache pour utilisation hors ligne.');
-                }
-            });
-        }
+        console.log("Nouvelle version SW trouvée..."); const newWorker = registration.installing;
+        if (newWorker) { newWorker.addEventListener('statechange', () => { if (newWorker.state === 'installed') { if (navigator.serviceWorker.controller) { console.log('Nouveau contenu prêt.'); showUpdateButton(registration); } else { console.log('Contenu mis en cache.'); } } }); }
     });
 }
-
 function showUpdateButton(registration) {
-    const existingButton = document.getElementById('sw-update-button');
-    if (existingButton) existingButton.remove(); // Enlever l'ancien si présent
-    const updateButton = document.createElement('button');
-    updateButton.id = 'sw-update-button';
-    updateButton.textContent = 'Mise à jour disponible ! Recharger';
-    updateButton.className = 'update-available-button';
-    updateButton.addEventListener('click', () => {
-        if (registration.waiting) {
-            updateButton.disabled = true; updateButton.textContent = 'Mise à jour...';
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        } else { window.location.reload(); }
-    });
-    document.body.appendChild(updateButton);
+    const oldBtn = document.getElementById('sw-update-button'); if (oldBtn) oldBtn.remove();
+    const btn = document.createElement('button'); btn.id = 'sw-update-button'; btn.textContent = 'MAJ disponible ! Recharger'; btn.className = 'update-available-button';
+    btn.addEventListener('click', () => { if (registration.waiting) { btn.disabled = true; btn.textContent = 'MAJ...'; registration.waiting.postMessage({ type: 'SKIP_WAITING' }); } else { window.location.reload(); } });
+    document.body.appendChild(btn);
 }
-
 
 // --- Gestion de l'affichage des vues ---
 function showView(viewId) {
-    // console.log("Affichage vue:", viewId); // Debug
-    document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
-    document.querySelectorAll('.nav-button').forEach(button => button.classList.remove('active'));
-
-    const viewToShow = document.getElementById(viewId);
-    if (viewToShow) {
-        viewToShow.classList.add('active');
-        // Rafraîchissements conditionnels
+    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
+    const view = document.getElementById(viewId);
+    if (view) {
+        view.classList.add('active');
         if (viewId === 'progressView') refreshCharts();
         else if (viewId === 'routineView') refreshRoutineView();
         else if (viewId === 'plannerView') refreshPlannerView();
-        // Pas de refresh spécifique pour cravingsView lors de l'affichage initial
-    } else {
-         console.error(`Vue avec ID '${viewId}' introuvable !`);
-         return; // Ne pas continuer si la vue n'existe pas
-    }
-
-    // Activer le bouton de navigation correspondant
+    } else { console.error(`Vue '${viewId}' introuvable !`); return; }
     if (viewId !== 'toggleZenModeView') {
-        // Correction: le bouton settings n'a pas de "show" préfixe par convention ici
-         let buttonId;
-         if (viewId === 'settingsView') {
-             buttonId = 'showSettingsBtn'; // Cas spécial pour le bouton Settings
-         } else {
-             const baseName = viewId.replace('View', '');
-             buttonId = `show${baseName.charAt(0).toUpperCase() + baseName.slice(1)}Btn`;
-         }
-
-        const buttonToActivate = document.getElementById(buttonId);
-        if (buttonToActivate) {
-            buttonToActivate.classList.add('active');
-        } else {
-            if (buttonId !== 'showToggleZenModeBtn') { // Ne pas warner pour le bouton Zen
-                 console.warn(`Bouton navigation '${buttonId}' introuvable pour vue '${viewId}'.`);
-            }
-        }
+        let btnId;
+        // Cas spéciaux pour les ID de boutons qui ne suivent pas la convention stricte
+        if (viewId === 'settingsView') btnId = 'showSettingsBtn';
+        else if (viewId === 'focusView') btnId = 'showFocusBtn'; // Assurez-vous que l'ID HTML est showFocusBtn
+        else if (viewId === 'cravingsView') btnId = 'showCravingsBtn';
+        else { const base = viewId.replace('View', ''); btnId = `show${base.charAt(0).toUpperCase() + base.slice(1)}Btn`; }
+        const activeBtn = document.getElementById(btnId);
+        if (activeBtn) activeBtn.classList.add('active');
+        else if (btnId !== 'showToggleZenModeBtn') console.warn(`Bouton nav '${btnId}' introuvable pour vue '${viewId}'.`);
     }
-
-    window.scrollTo(0, 0); // Scroll vers le haut
+    window.scrollTo(0, 0);
 }
-// *** Rendre showView accessible globalement ***
-window.showView = showView; // Permet à cravingsView d'appeler showView('sosView')
+window.showView = showView; // Exposer globalement
 
-
-// --- Initialisation des modules de l'application ---
+// --- Initialisation des modules ---
 function initializeApp() {
     console.log("DOM Chargé. Initialisation application Clair·e...");
-
-    // Initialisation du Mode Zen
     zenModeButton = document.getElementById('toggleZenModeBtn');
-    if (zenModeButton) {
-        const initialZenState = isZenModeEnabled();
-        setZenMode(initialZenState);
-        zenModeButton.addEventListener('click', toggleZenMode);
-    } else { console.warn("Bouton 'toggleZenModeBtn' introuvable."); }
+    if (zenModeButton) { const state = isZenModeEnabled(); setZenMode(state); zenModeButton.addEventListener('click', toggleZenMode); }
+    else { console.warn("Bouton 'toggleZenModeBtn' introuvable."); }
 
-    // Initialisation des Vues
-    // *** AJOUT DE cravingsView À LA LISTE ***
     const views = [
-        { id: 'sobrietyView', initFn: initSobrietyTracker },
-        { id: 'journalView', initFn: initJournal },
-        { id: 'moodTrackerView', initFn: initMoodTracker },
-        { id: 'progressView', initFn: initProgressView },
-        { id: 'exercisesView', initFn: initExercisesView },
-        { id: 'routineView', initFn: initRoutineView },
-        { id: 'plannerView', initFn: initPlannerView },
-        { id: 'testimonialsView', initFn: initTestimonialsView },
-        { id: 'victoriesView', initFn: initVictoriesView },
-        { id: 'sosView', initFn: initSosView },
-        { id: 'settingsView', initFn: initSettingsView },
-        { id: 'cravingsView', initFn: initCravingsView }, // <<<< NOUVELLE VUE ICI
-        { id: 'focusView', initFn: initFocusView }
+        { id: 'sobrietyView', initFn: initSobrietyTracker }, { id: 'journalView', initFn: initJournal },
+        { id: 'moodTrackerView', initFn: initMoodTracker }, { id: 'progressView', initFn: initProgressView },
+        { id: 'exercisesView', initFn: initExercisesView }, { id: 'routineView', initFn: initRoutineView },
+        { id: 'plannerView', initFn: initPlannerView }, { id: 'testimonialsView', initFn: initTestimonialsView },
+        { id: 'victoriesView', initFn: initVictoriesView }, { id: 'sosView', initFn: initSosView },
+        { id: 'settingsView', initFn: initSettingsView }, { id: 'cravingsView', initFn: initCravingsView },
+        { id: 'focusView', initFn: initFocusView } // Vue Focus ajoutée
     ];
-
     views.forEach(view => {
         const container = document.getElementById(view.id);
         if (container && typeof view.initFn === 'function') {
-            try {
-                const result = view.initFn(container);
-                // Gérer promesse si initFn est async (ce qui est le cas pour certaines vues maintenant)
-                if (result instanceof Promise) {
-                     result.catch(err => console.error(`Erreur async init vue ${view.id}:`, err));
-                }
-            } catch (error) { console.error(`Erreur init vue ${view.id}:`, error); }
+            try { const res = view.initFn(container); if (res instanceof Promise) res.catch(err => console.error(`Err async init ${view.id}:`, err)); }
+            catch (error) { console.error(`Err init vue ${view.id}:`, error); }
         } else if (!container) { console.error(`Conteneur '${view.id}' introuvable.`); }
     });
 
-    // Écouteurs de navigation
-    // *** AJOUT DE 'Cravings' À LA LISTE ***
-    
-// DANS app.js -> initializeApp -> navButtons.forEach
-navButtons.forEach(viewName => {
-    const buttonId = `show${viewName}Btn`;
-    const button = document.getElementById(buttonId);
-    // Construit l'ID de la vue à afficher (ex: 'journalView')
-    const viewId = `${viewName.charAt(0).toLowerCase() + viewName.slice(1)}View`;
-    if (button) {
-        button.addEventListener('click', () => showView(viewId));
-    } else {
-        // Ne pas afficher de warning pour les boutons qui n'existent pas (Zen)
-         if (buttonId !== 'showToggleZenModeBtn') {
-             console.warn(`Bouton de navigation '${buttonId}' introuvable.`);
-         }
-    }
-}); // Fin de navButtons.forEach
-
-    // Afficher vue par défaut si aucune n'est active
-    if (!document.querySelector('.view-section.active')) {
-         showView('sobrietyView');
-    }
-} // Fin de initializeApp
+    const navButtons = [ 'Sobriety', 'Journal', 'MoodTracker', 'Progress', 'Exercises', 'Routine', 'Planner', 'Testimonials', 'Victories', 'Sos', 'Settings', 'Cravings', 'Focus' ]; // 'Focus' ajouté
+    navButtons.forEach(name => {
+        const btnId = `show${name}Btn`; const btn = document.getElementById(btnId);
+        const viewId = `${name.charAt(0).toLowerCase() + name.slice(1)}View`;
+        if (btn) { btn.addEventListener('click', () => showView(viewId)); }
+        else if (btnId !== 'showToggleZenModeBtn') console.warn(`Bouton nav '${btnId}' introuvable.`);
+    });
+    if (!document.querySelector('.view-section.active')) showView('sobrietyView');
+}
 
 // --- Lancement ---
 document.addEventListener('DOMContentLoaded', initializeApp);
