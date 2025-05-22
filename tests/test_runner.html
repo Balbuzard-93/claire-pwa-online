@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clair·e PWA - Unit Tests</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .suite { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
+        .suite-title { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
+        .test-case { margin-left: 20px; margin-bottom: 5px; }
+        .test-case.pass { color: green; }
+        .test-case.fail { color: red; font-weight: bold; }
+        .summary { margin-top: 20px; font-weight: bold; }
+        .summary .pass { color: green; }
+        .summary .fail { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Clair·e PWA - Unit Tests</h1>
+    <div id="testResults"></div>
+    <div id="summary" class="summary"></div>
+
+    <div class="suite">
+        <div class="suite-title">Manual Accessibility Tests</div>
+        <div class="test-case">
+            <strong>Menu Focus Return:</strong>
+            <p>Manually verify that after selecting an item from the main navigation menu using keyboard controls, the focus returns to the menu toggle button (☰).</p>
+            <p>Steps:</p>
+            <ol>
+                <li>Tab to menu button (☰), press Enter/Space to open.</li>
+                <li>Tab to a menu item, press Enter to select.</li>
+                <li>Confirm focus is back on the menu button (☰).</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const testResultsDiv = document.getElementById('testResults');
+        const summaryDiv = document.getElementById('summary');
+        let totalTests = 0;
+        let passedTests = 0;
+        let failedTests = 0;
+
+        function describe(suiteName, fn) {
+            const suiteDiv = document.createElement('div');
+            suiteDiv.className = 'suite';
+            const title = document.createElement('div');
+            title.className = 'suite-title';
+            title.textContent = suiteName;
+            suiteDiv.appendChild(title);
+            testResultsDiv.appendChild(suiteDiv);
+            fn();
+        }
+
+        function it(description, fn) {
+            totalTests++;
+            const testCaseDiv = document.createElement('div');
+            testCaseDiv.className = 'test-case';
+            try {
+                fn();
+                testCaseDiv.textContent = `PASS: ${description}`;
+                testCaseDiv.classList.add('pass');
+                passedTests++;
+            } catch (e) {
+                testCaseDiv.textContent = `FAIL: ${description} - ${e.message}`;
+                testCaseDiv.classList.add('fail');
+                console.error(`Test failed: ${description}`, e);
+                failedTests++;
+            }
+            // Find the current suite div to append this test case
+            const currentSuite = testResultsDiv.lastChild; // Assumes describe() was called before it()
+            if (currentSuite && currentSuite.classList.contains('suite')) {
+                currentSuite.appendChild(testCaseDiv);
+            } else { // Fallback if somehow not in a suite
+                testResultsDiv.appendChild(testCaseDiv);
+            }
+        }
+
+        function assert(condition, message = "Assertion failed") {
+            if (!condition) {
+                throw new Error(message);
+            }
+        }
+
+        function assertEquals(actual, expected, message = `Expected ${expected} but got ${actual}`) {
+            if (actual !== expected) {
+                throw new Error(message);
+            }
+        }
+        
+        function assertDeepEquals(actual, expected, message = `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(message);
+            }
+        }
+
+        function updateSummary() {
+            summaryDiv.innerHTML = `
+                <p>Total Tests: ${totalTests}</p>
+                <p class="pass">Passed: ${passedTests}</p>
+                <p class="fail">Failed: ${failedTests}</p>
+            `;
+        }
+        
+        // Function to load and run test scripts
+        async function runTests(testFiles) {
+            for (const file of testFiles) {
+                try {
+                    await import(file);
+                } catch (e) {
+                    console.error(`Error loading test file ${file}:`, e);
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'test-case fail';
+                    errorDiv.textContent = `ERROR LOADING TEST FILE: ${file} - ${e.message}`;
+                    testResultsDiv.appendChild(errorDiv);
+                    failedTests++; // Count loading errors as test failures
+                    totalTests++;  // Ensure it's counted in total
+                }
+            }
+            updateSummary(); // Update summary after all tests are run
+        }
+
+    </script>
+    <!-- Test scripts will be imported here by the runner -->
+    <script type="module">
+        runTests(['./storageUtils.test.js', './moodTracker.test.js']);
+    </script>
+</body>
+</html>

@@ -111,7 +111,9 @@ function initializeApp() {
                     mainMenu.classList.remove('open');
                     mainMenu.setAttribute('aria-hidden', 'true');
                     // *** DÉPLACER LE FOCUS APRÈS SÉLECTION ET FERMETURE ***
-                    menuToggleBtn.focus();
+                    requestAnimationFrame(() => {
+                        menuToggleBtn.focus();
+                    });
                 }
             });
         });

@@ -1,5 +1,5 @@
 // moodTracker.js (Version Corrigée v4 - Date Locale + Logs + Fix parseInt)
-import { getMoodEntryForDate, saveMoodEntry } from './storageUtils.js'; // Ne pas importer getCurrentDateString
+import { getMoodEntryForDate, saveMoodEntry, getCurrentDateString } from './storageUtils.js'; // Importer getCurrentDateString
 
 let currentSelection = { mood: null, energy: null, anxiety: null };
 let todaysExistingEntry = null;
@@ -104,12 +104,8 @@ export async function initMoodTracker(containerElement) {
     // *** OBTENIR LA DATE DIRECTEMENT ICI ***
     let todayStringForInit;
     try {
-        const now = new Date();
-        const year = now.getUTCFullYear();
-        const month = (now.getUTCMonth() + 1).toString().padStart(2, '0');
-        const day = now.getUTCDate().toString().padStart(2, '0');
-        todayStringForInit = `${year}-${month}-${day}`;
-        console.log("Mood LOG: Date pour init (calculée localement):", todayStringForInit);
+        todayStringForInit = getCurrentDateString();
+        console.log("Mood LOG: Date pour init (via getCurrentDateString):", todayStringForInit);
     } catch (e) {
          console.error("Mood LOG FATAL: Erreur calcul date init:", e);
          containerElement.innerHTML = "<p>Erreur interne date.</p>";
@@ -165,12 +161,11 @@ export async function initMoodTracker(containerElement) {
         // Recalculer la date JUSTE avant de sauvegarder pour max fiabilité
         let dateForSave;
         try {
-             const nowClick = new Date(); const yC=nowClick.getUTCFullYear(); const mC=(nowClick.getUTCMonth()+1).toString().padStart(2,'0'); const dC=nowClick.getUTCDate().toString().padStart(2,'0');
-             dateForSave = `${yC}-${mC}-${dC}`;
+             dateForSave = getCurrentDateString();
         } catch(e) {
              console.error("Mood LOG FATAL: Erreur calcul date au clic:", e); alert("Erreur date."); return;
         }
-        // console.log("Mood LOG: Clic 'Enregistrer Humeur' pour date", dateForSave);
+        console.log("Mood LOG: Clic 'Enregistrer Humeur' pour date (via getCurrentDateString):", dateForSave);
         await saveMood(containerElement, dateForSave);
     });
     // console.log("Mood LOG: Listener bouton 'Enregistrer' ajouté.");
