@@ -7,8 +7,8 @@ const LS_PERSONAL_VALUES_KEY = 'claireAppPersonalValues'; // <<< S'ASSURER QU'EL
 
 // --- Configuration IndexedDB ---
 const DB_NAME = 'ClaireAppDB';
-const DB_VERSION = 4; // Maintenir à 4 si la structure des stores n'a pas changé
-const STORES = { JOURNAL: 'journal_entries', MOOD: 'mood_logs', ROUTINE: 'daily_routines', PLANNER: 'daily_plans', VICTORIES: 'victories_log', THOUGHT_RECORDS: 'thought_records', ALCOHOL_LOG: 'alcohol_consumption_log', ACTIVITY_LOGS: 'activity_logs' };
+const DB_VERSION = 6; // Incremented for gratitude_entries and user_goals stores
+const STORES = { JOURNAL: 'journal_entries', MOOD: 'mood_logs', ROUTINE: 'daily_routines', PLANNER: 'daily_plans', VICTORIES: 'victories_log', THOUGHT_RECORDS: 'thought_records', ALCOHOL_LOG: 'alcohol_consumption_log', ACTIVITY_LOGS: 'activity_logs', GRATITUDE: 'gratitude_entries', GOALS: 'user_goals' };
 
 let dbPromise = null;
 
@@ -26,14 +26,36 @@ function openDB() {
                 Object.values(STORES).forEach(storeName => {
                     if (!db.objectStoreNames.contains(storeName)) {
                         let store;
-                        if ([STORES.JOURNAL, STORES.VICTORIES, STORES.THOUGHT_RECORDS, STORES.ACTIVITY_LOGS].includes(storeName)) {
+                        if ([STORES.JOURNAL, STORES.VICTORIES, STORES.THOUGHT_RECORDS, STORES.ACTIVITY_LOGS, STORES.GRATITUDE, STORES.GOALS].includes(storeName)) {
                             store = db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
                             if (storeName === STORES.ACTIVITY_LOGS) store.createIndex('date', 'date');
-                            store.createIndex('timestamp', 'timestamp');
+                            if ([STORES.JOURNAL, STORES.VICTORIES, STORES.THOUGHT_RECORDS, STORES.GRATITUDE, STORES.ACTIVITY_LOGS].includes(storeName)) {
+                                store.createIndex('timestamp', 'timestamp');
+                            }
+                            if (storeName === STORES.GOALS) {
+                                store.createIndex('status_idx', 'status'); // Index for goals status
+                                store.createIndex('createdAt', 'createdAt'); // Index for sorting goals by creation date
+                            }
                         } else { store = db.createObjectStore(storeName, { keyPath: 'date' }); }
                         console.log(`OS ${storeName} créé.`);
                     } else {
-                         if (storeName === STORES.ACTIVITY_LOGS && event.oldVersion < 4) {
+                         // Logic for upgrading existing stores if schema changes
+                         if (storeName === STORES.GRATITUDE && !event.target.transaction.objectStore(storeName).indexNames.contains('timestamp')) {
+                            const storeToUpdate = event.target.transaction.objectStore(storeName);
+                            storeToUpdate.createIndex('timestamp', 'timestamp');
+                            console.log(`Index 'timestamp' créé pour ${STORES.GRATITUDE}.`);
+                         }
+                         if (storeName === STORES.GOALS) {
+                            const goalStore = event.target.transaction.objectStore(STORES.GOALS);
+                            if (!goalStore.indexNames.contains('status_idx')) {
+                                goalStore.createIndex('status_idx', 'status');
+                                console.log(`Index 'status_idx' créé pour ${STORES.GOALS}.`);
+                            }
+                            if (!goalStore.indexNames.contains('createdAt')) {
+                                goalStore.createIndex('createdAt', 'createdAt');
+                                console.log(`Index 'createdAt' créé pour ${STORES.GOALS}.`);
+                            }
+                         } else if (storeName === STORES.ACTIVITY_LOGS && event.oldVersion < 4) {
                               const store = event.target.transaction.objectStore(storeName);
                               if (!store.indexNames.contains('date')) store.createIndex('date', 'date');
                               if (!store.indexNames.contains('timestamp')) store.createIndex('timestamp', 'timestamp');
@@ -96,12 +118,81 @@ export async function getActivityLogsForDate(dateString) { if (!dateString) retu
 export async function getAllActivityLogs() { try { const data = await getAllData(STORES.ACTIVITY_LOGS); if(Array.isArray(data)){data.forEach(log=>{if(!Array.isArray(log.linkedValues))log.linkedValues=[];});return data;}return[];}catch(e){console.error("Err getAllActivityLogs:",e);return[];}}
 export async function deleteActivityLog(activityId) { return deleteDataByKey(STORES.ACTIVITY_LOGS, activityId); }
 
+// --- Gratitude Journal Functions ---
+export async function getGratitudeEntries() {
+    try {
+        const entries = await getAllData(STORES.GRATITUDE);
+        return Array.isArray(entries) ? entries : [];
+    } catch (error) {
+        console.error("Error getting gratitude entries:", error);
+        return [];
+    }
+}
+
+export async function addGratitudeEntry(entryText) {
+    if (!entryText || typeof entryText !== 'string') {
+        throw new Error("Gratitude entry text is invalid");
+    }
+    const entryData = {
+        timestamp: new Date().toISOString(),
+        text: entryText
+        // 'id' will be auto-generated
+    };
+    return putData(STORES.GRATITUDE, entryData);
+}
+
+export async function deleteGratitudeEntry(entryId) {
+    if (entryId === undefined || entryId === null) {
+        throw new Error("Gratitude entry ID is invalid for deletion");
+    }
+    return deleteDataByKey(STORES.GRATITUDE, entryId);
+}
+// --- End Gratitude Journal Functions ---
+
+// --- Goal Setting Functions ---
+export async function addGoal(goalData) {
+    if (!goalData || typeof goalData !== 'object' || !goalData.title || !goalData.status || !goalData.createdAt) {
+        throw new Error("Goal data is invalid");
+    }
+    return putData(STORES.GOALS, goalData);
+}
+
+export async function getGoals() {
+    try {
+        const goals = await getAllData(STORES.GOALS);
+        return Array.isArray(goals) ? goals : [];
+    } catch (error) {
+        console.error("Error getting goals:", error);
+        return [];
+    }
+}
+
+export async function updateGoalStatus(goalId, newStatus) {
+    if (goalId === undefined || goalId === null || !newStatus) {
+        throw new Error("Goal ID or new status is invalid for update");
+    }
+    const goal = await getDataByKey(STORES.GOALS, goalId);
+    if (!goal) {
+        throw new Error(`Goal with ID ${goalId} not found`);
+    }
+    const updatedGoal = { ...goal, status: newStatus };
+    return putData(STORES.GOALS, updatedGoal);
+}
+
+export async function deleteGoal(goalId) {
+    if (goalId === undefined || goalId === null) {
+        throw new Error("Goal ID is invalid for deletion");
+    }
+    return deleteDataByKey(STORES.GOALS, goalId);
+}
+// --- End Goal Setting Functions ---
+
 export async function getAllAppData() {
-    const allData = { settings: {}, journal: [], mood: [], routines: {}, plans: {}, victories: [], distractions: [], thoughtRecords: [], alcoholLogs: [], activityLogs: [] };
+    const allData = { settings: {}, journal: [], mood: [], routines: {}, plans: {}, victories: [], distractions: [], thoughtRecords: [], alcoholLogs: [], activityLogs: [], gratitudeEntries: [], userGoals: [] };
     try { allData.settings.earnedBadges = getEarnedBadgesFromStorage(); allData.distractions = getDistractions(); allData.settings.personalValues = getPersonalValues(); } catch(e){ console.error("Err lecture LS pour export:", e); }
     try {
-        const [journal, mood, victories, routineKeys, plannerKeys, thoughtRecords, alcoholLogs, activityLogs] = await Promise.all([ getAllData(STORES.JOURNAL).catch(e=>[]), getAllData(STORES.MOOD).catch(e=>[]), getAllData(STORES.VICTORIES).catch(e=>[]), getAllKeys(STORES.ROUTINE).catch(e=>[]), getAllKeys(STORES.PLANNER).catch(e=>[]), getAllData(STORES.THOUGHT_RECORDS).catch(e=>[]), getAllData(STORES.ALCOHOL_LOG).catch(e=>[]), getAllActivityLogs().catch(e => []) ].map(p => p.catch(e => { console.warn("Err partiel export IDB:", e); return []; })));
-        allData.journal = journal; allData.mood = mood; allData.victories = victories; allData.thoughtRecords = thoughtRecords; allData.alcoholLogs = alcoholLogs; allData.activityLogs = activityLogs;
+        const [journal, mood, victories, routineKeys, plannerKeys, thoughtRecords, alcoholLogs, activityLogs, gratitudeEntries, userGoals] = await Promise.all([ getAllData(STORES.JOURNAL).catch(e=>[]), getAllData(STORES.MOOD).catch(e=>[]), getAllData(STORES.VICTORIES).catch(e=>[]), getAllKeys(STORES.ROUTINE).catch(e=>[]), getAllKeys(STORES.PLANNER).catch(e=>[]), getAllData(STORES.THOUGHT_RECORDS).catch(e=>[]), getAllData(STORES.ALCOHOL_LOG).catch(e=>[]), getAllActivityLogs().catch(e => []), getAllData(STORES.GRATITUDE).catch(e => []), getAllData(STORES.GOALS).catch(e => []) ].map(p => p.catch(e => { console.warn("Err partiel export IDB:", e); return []; })));
+        allData.journal = journal; allData.mood = mood; allData.victories = victories; allData.thoughtRecords = thoughtRecords; allData.alcoholLogs = alcoholLogs; allData.activityLogs = activityLogs; allData.gratitudeEntries = gratitudeEntries; allData.userGoals = userGoals;
         const routinePromises = routineKeys.map(key => getDataByKey(STORES.ROUTINE, key).catch(e => null));
         const planPromises = plannerKeys.map(key => getDataByKey(STORES.PLANNER, key).catch(e => null));
         const routineResults = await Promise.all(routinePromises); routineResults.forEach(r => { if(r && r.date) allData.routines[r.date] = r; });

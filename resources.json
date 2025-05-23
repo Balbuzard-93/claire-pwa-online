@@ -1,0 +1,38 @@
+[
+  {
+    "category": "Gestion du Stress",
+    "title": "Techniques de respiration pour réduire le stress",
+    "url": "https://www.example.com/stress-respiration",
+    "description": "Un guide pratique sur les techniques de respiration pour apaiser le système nerveux."
+  },
+  {
+    "category": "Gestion du Stress",
+    "title": "Introduction à la méditation de pleine conscience",
+    "url": "https://www.example.com/pleine-conscience",
+    "description": "Découvrez les bases de la méditation de pleine conscience et ses bienfaits."
+  },
+  {
+    "category": "Améliorer le Sommeil",
+    "title": "Conseils pour une meilleure hygiène de sommeil",
+    "url": "https://www.example.com/conseils-sommeil",
+    "description": "Adoptez de bonnes habitudes pour un sommeil réparateur et de qualité."
+  },
+  {
+    "category": "Améliorer le Sommeil",
+    "title": "Comprendre les cycles du sommeil",
+    "url": "https://www.example.com/cycles-sommeil",
+    "description": "Apprenez comment fonctionnent les cycles du sommeil pour mieux dormir."
+  },
+  {
+    "category": "Nutrition et Bien-être",
+    "title": "L'alimentation équilibrée pour une meilleure énergie",
+    "url": "https://www.example.com/nutrition-energie",
+    "description": "Principes de base d'une alimentation saine pour booster votre vitalité."
+  },
+  {
+    "category": "Activité Physique",
+    "title": "Bienfaits de l'exercice régulier sur la santé mentale",
+    "url": "https://www.example.com/exercice-sante-mentale",
+    "description": "Découvrez comment l'activité physique peut améliorer votre humeur et réduire l'anxiété."
+  }
+]
